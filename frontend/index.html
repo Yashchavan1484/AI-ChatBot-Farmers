@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kisan Mitra - AI Crop Advisor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    .prose-bot h2, .prose-bot h3 { font-size: 1.05rem; font-weight: 700; margin-top: 0.75rem; margin-bottom: 0.25rem; color: #065f46; }
+    .prose-bot ul { list-style-type: disc; margin-left: 1.25rem; margin-top: 0.25rem; margin-bottom: 0.5rem; }
+    .prose-bot li { margin-bottom: 0.25rem; }
+    .prose-bot p { margin-bottom: 0.5rem; }
+    .prose-bot strong { color: #047857; font-weight: 600; }
+    
+    @keyframes pulse-mic {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    .mic-recording {
+      background-color: #ef4444 !important;
+      color: white !important;
+      animation: pulse-mic 1.5s infinite;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 h-screen flex flex-col font-sans overflow-hidden">
+
+  <!-- Header -->
+  <header class="bg-emerald-800 text-white shadow-md flex-none z-20">
+    <div class="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <!-- Sidebar Toggle -->
+        <button 
+          id="sidebarToggleBtn" 
+          onclick="toggleSidebar()" 
+          title="Toggle Chat History"
+          class="p-2 rounded-lg bg-emerald-900/60 hover:bg-emerald-700 text-emerald-100 transition focus:outline-none"
+        >
+          <i class="fa-solid fa-bars text-base"></i>
+        </button>
+
+        <div class="w-9 h-9 rounded-full bg-emerald-700 border border-emerald-500 flex items-center justify-center shadow-inner">
+          <i class="fa-solid fa-leaf text-emerald-200 text-lg"></i>
+        </div>
+        <div>
+          <h1 id="appTitle" class="text-base sm:text-lg font-bold leading-tight tracking-wide">किसान मित्र (Kisan Mitra)</h1>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Language Selector -->
+        <select 
+          id="langSelect" 
+          onchange="changeLanguage(this.value)" 
+          class="bg-emerald-900 border border-emerald-500/60 text-white text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer font-medium"
+        >
+          <option value="mr" selected>मराठी</option>
+          <option value="hi">हिन्दी</option>
+          <option value="en">English</option>
+        </select>
+
+        <!-- New Chat Button -->
+        <button 
+          onclick="startNewChatSession()" 
+          title="Start New Discussion" 
+          class="text-xs bg-emerald-700 hover:bg-emerald-600 border border-emerald-500/40 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition font-medium"
+        >
+          <i class="fa-solid fa-plus text-xs"></i> 
+          <span id="resetText" class="hidden sm:inline">नवीन संवाद</span>
+        </button>
+
+        <!-- Auth Status & Controls -->
+        <div id="authSection" class="flex items-center gap-2">
+          <button 
+            id="btnLoginModal" 
+            onclick="openAuthModal('login')" 
+            class="text-xs bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-lg font-medium transition shadow-xs flex items-center gap-1.5"
+          >
+            <i class="fa-solid fa-user text-xs"></i> <span>लॉगिन</span>
+          </button>
+
+          <div id="userProfile" class="hidden flex items-center gap-2">
+            <span id="userDisplayName" class="text-xs font-semibold text-emerald-100 max-w-[120px] truncate"></span>
+            <button 
+              onclick="handleLogout()" 
+              title="Logout" 
+              class="text-xs bg-emerald-900/80 hover:bg-red-600 text-white p-1.5 rounded-lg transition"
+            >
+              <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="flex-1 flex overflow-hidden relative max-w-6xl w-full mx-auto">
+    
+    <!-- Sidebar: Saved History -->
+    <aside 
+      id="chatSidebar" 
+      class="w-72 bg-white border-r border-slate-200 flex flex-col transition-all duration-300 ease-in-out absolute sm:relative inset-y-0 left-0 z-30 transform -translate-x-full sm:translate-x-0 shadow-lg sm:shadow-none"
+    >
+      <div class="p-3 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <h2 id="sidebarHeading" class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+          <i class="fa-solid fa-clock-rotate-left text-emerald-600"></i>
+          <span>मागील सल्ला इतिहास</span>
+        </h2>
+        <button onclick="toggleSidebar()" class="sm:hidden text-slate-400 hover:text-slate-600 p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- History List -->
+      <div class="flex-1 overflow-y-auto p-2 space-y-1">
+        <div id="authNotice" class="text-xs text-slate-500 p-3 text-center leading-relaxed">
+          इतिहास साठवण्यासाठी कृपया <a href="javascript:void(0)" onclick="openAuthModal('login')" class="text-emerald-600 font-semibold underline">लॉगिन करा</a>.
+        </div>
+        <ul id="sessionList" class="space-y-1"></ul>
+      </div>
+
+      <div class="p-2.5 border-t border-slate-100 bg-slate-50">
+        <button 
+          id="newSessionBtn"
+          onclick="startNewChatSession()" 
+          class="w-full text-xs bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-200 py-2 rounded-lg font-medium transition flex items-center justify-center gap-1.5"
+        >
+          <i class="fa-solid fa-plus text-xs"></i> <span>नवीन पीक सल्ला सुरू करा</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Chat Workspace -->
+    <div class="flex-1 flex flex-col h-full bg-slate-100 overflow-hidden relative">
+      
+      <!-- Messages Container -->
+      <main id="chatContainer" class="flex-1 overflow-y-auto p-4 space-y-4">
+        <div id="welcomeMessageArea"></div>
+      </main>
+
+      <!-- Typing Indicator -->
+      <div id="typingIndicator" class="hidden px-4 pb-2 flex items-center gap-2 text-xs text-slate-500">
+        <div class="flex gap-1 items-center bg-white border border-slate-200 px-3 py-1.5 rounded-full shadow-sm">
+          <div class="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-bounce"></div>
+          <div class="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+          <div class="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+          <span id="typingText" class="ml-1 text-[11px] text-slate-600 font-medium">माहिती तपासत आहे...</span>
+        </div>
+      </div>
+
+      <!-- Bottom Chat Form -->
+      <footer class="bg-white border-t border-slate-200 p-3 flex-none shadow-sm z-10">
+        <div class="max-w-4xl mx-auto space-y-2">
+
+          <!-- Image Preview -->
+          <div id="imagePreviewContainer" class="hidden flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg p-1.5 w-fit">
+            <img id="imagePreview" src="" alt="Selected leaf" class="w-10 h-10 object-cover rounded-md border border-emerald-300 shadow-xs" />
+            <span id="imageAttachedText" class="text-xs text-emerald-900 font-medium">पानाचे छायाचित्र जोडले आहे</span>
+            <button type="button" onclick="removeSelectedImage()" class="text-slate-400 hover:text-red-500 px-1.5 transition">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <form id="chatForm" class="flex items-center gap-2" onsubmit="event.preventDefault(); handleChat();">
+            <input 
+              type="file" 
+              id="imageInput" 
+              accept="image/*" 
+              class="hidden" 
+              onchange="handleImageSelection(event)" 
+            />
+            
+            <button 
+              type="button" 
+              id="cameraBtn"
+              onclick="document.getElementById('imageInput').click()" 
+              title="Upload or Capture Leaf Photo" 
+              class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 flex items-center justify-center transition flex-none active:scale-95"
+            >
+              <i class="fa-solid fa-camera text-base"></i>
+            </button>
+
+            <button 
+              type="button" 
+              id="micBtn" 
+              onclick="toggleVoiceRecognition(event)" 
+              title="Speak in your language" 
+              class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 flex items-center justify-center transition flex-none active:scale-95"
+            >
+              <i class="fa-solid fa-microphone text-base"></i>
+            </button>
+
+            <textarea 
+              id="userInput" 
+              rows="1" 
+              placeholder="तुमचा प्रश्न बोला किंवा टाईप करा..." 
+              class="flex-1 bg-slate-50 border border-slate-300 focus:bg-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent resize-none max-h-32 transition"
+              onkeydown="handleKeyDown(event)"
+            ></textarea>
+
+            <button 
+              type="submit" 
+              id="sendBtn" 
+              class="bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white w-10 h-10 rounded-xl flex items-center justify-center transition shadow-sm flex-none disabled:opacity-50"
+            >
+              <i class="fa-solid fa-paper-plane text-sm"></i>
+            </button>
+          </form>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Auth Modal -->
+  <div id="authModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 relative border border-slate-100">
+      <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="flex items-center gap-2 mb-4">
+        <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center">
+          <i class="fa-solid fa-seedling"></i>
+        </div>
+        <h3 id="authModalTitle" class="text-base font-bold text-slate-800">शेतकरी लॉगिन (Farmer Login)</h3>
+      </div>
+
+      <div id="regNameField" class="hidden mb-3">
+        <label id="lblFullName" class="block text-xs font-semibold text-slate-700 mb-1">पूर्ण नाव (Full Name)</label>
+        <input type="text" id="regFullName" placeholder="उदा. यश चव्हाण" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+      </div>
+
+      <div class="mb-3">
+        <label id="lblPhone" class="block text-xs font-semibold text-slate-700 mb-1">मोबाईल नंबर (Phone Number)</label>
+        <input type="tel" id="authPhone" placeholder="10-अंकी मोबाईल नंबर" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+      </div>
+
+      <div class="mb-4">
+        <label id="lblPassword" class="block text-xs font-semibold text-slate-700 mb-1">पासवर्ड (Password)</label>
+        <input type="password" id="authPassword" placeholder="पासवर्ड टाका" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+      </div>
+
+      <button id="authSubmitBtn" onclick="submitAuthForm()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-medium py-2.5 rounded-lg text-sm transition shadow-sm">
+        लॉगिन करा
+      </button>
+
+      <div class="mt-4 text-center text-xs text-slate-600">
+        <span id="authTogglePrompt">खाते नाही?</span>
+        <button type="button" id="authToggleBtn" onclick="toggleAuthMode()" class="text-emerald-700 font-semibold underline ml-1">
+          नवीन नोंदणी करा (Sign Up)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "";
+    let currentLang = localStorage.getItem("kisan_lang") || "mr";
+    let authToken = localStorage.getItem("kisan_token") || null;
+    let currentSessionId = localStorage.getItem("kisan_session_id") || null;
+    let chatHistory = [];
+    let currentBase64Image = null;
+    let isRecording = false;
+    let recognition = null;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let currentActiveSpeakerBtn = null;
+    let authMode = "login";
+
+    const langCodes = { mr: "mr-IN", hi: "hi-IN", en: "en-IN" };
+
+    const translations = {
+      mr: {
+        appTitle: "किसान मित्र (Kisan Mitra)",
+        resetText: "नवीन संवाद",
+        sidebarHeading: "मागील सल्ला इतिहास",
+        newSessionBtn: "नवीन पीक सल्ला सुरू करा",
+        authNotice: 'इतिहास साठवण्यासाठी कृपया <a href="javascript:void(0)" onclick="openAuthModal(\'login\')" class="text-emerald-600 font-semibold underline">लॉगिन करा</a>.',
+        loginBtnText: "लॉगिन",
+        typingText: "माहिती तपासत आहे व सल्ला तयार करत आहे...",
+        inputPlaceholder: "तुमचा प्रश्न बोला (माईक दाबा) किंवा टाईप करा...",
+        imageAttachedText: "पानाचे छायाचित्र जोडले आहे",
+        cameraTitle: "पानाचा फोटो काढा किंवा अपलोड करा",
+        micTitle: "आपल्या भाषेत बोला",
+        recordingText: "🔴 रेकॉर्डिंग सुरू आहे... बोलून झाल्यावर पुन्हा माईक दाबा!",
+        welcomeTitle: "नमस्कार शेतकरी बंधूंनो! 🙏",
+        welcomeDesc: "मी तुमचा कृषी सल्लागार आहे. खालील विषयांवर थेट क्लिक करू शकता, माईक दाबून बोलू शकता किंवा फोटो पाठवू शकता:",
+        chips: [
+          { label: "🥔 बटाट्याचे उत्तम वाण", query: "बटाट्याचे अधिक उत्पादन देणारे आणि रोगप्रतिकारक वाण कोणते आहेत?" },
+          { label: "🍅 टोमॅटो पाने पिवळी पडणे", query: "टोमॅटोची पाने पिवळी पडत आहेत, काय उपाय करावा?" },
+          { label: "🌱 कपाशी बोंडअळी नियंत्रण", query: "कपाशीवरील गुलाबी बोंडअळी नियंत्रणासाठी काय फवारणी करावी?" },
+          { label: "🌾 गहू खत वेळापत्रक", query: "गव्हासाठी खतांचे योग्य वेळापत्रक आणि प्रमाण काय आहे?" }
+        ],
+        modalLoginTitle: "शेतकरी लॉगिन (Farmer Login)",
+        modalRegTitle: "शेतकरी नोंदणी (New Registration)",
+        modalNameLabel: "पूर्ण नाव (Full Name)",
+        modalNamePlaceholder: "उदा. यश चव्हाण",
+        modalPhoneLabel: "मोबाईल नंबर (Phone Number)",
+        modalPhonePlaceholder: "10-अंकी मोबाईल नंबर",
+        modalPassLabel: "पासवर्ड (Password)",
+        modalPassPlaceholder: "पासवर्ड टाका",
+        modalSubmitLogin: "लॉगिन करा",
+        modalSubmitReg: "नोंदणी पूर्ण करा",
+        modalNoAccount: "खाते नाही?",
+        modalHaveAccount: "आधीच खाते आहे?",
+        modalToggleToReg: "नवीन नोंदणी करा (Sign Up)",
+        modalToggleToLogin: "लॉगिन करा",
+        deleteConfirm: "ही चर्चा कायमची हटवायची आहे का? (Do you want to delete this chat?)",
+        errorMsg: "सल्ला लोड करताना अडचण आली. सर्व्हर चालू असल्याची खात्री करा.",
+        defaultSessionTitle: "नवीन कृषी चर्चा",
+        imageAnalysisPrompt: "कृपया या पानाचे निरीक्षण करून रोग व फवारणी औषधांची मात्रा सांगा."
+      },
+      hi: {
+        appTitle: "किसान मित्र (Kisan Mitra)",
+        resetText: "नई बातचीत",
+        sidebarHeading: "पिछली बातचीत का इतिहास",
+        newSessionBtn: "नई फसल सलाह शुरू करें",
+        authNotice: 'इतिहास सुरक्षित रखने के लिए कृपया <a href="javascript:void(0)" onclick="openAuthModal(\'login\')" class="text-emerald-600 font-semibold underline">लॉगिन करें</a>।',
+        loginBtnText: "लॉगिन",
+        typingText: "सलाह तैयार की जा रही है...",
+        inputPlaceholder: "सवाल बोलें (माइक दबाएं) या टाइप करें...",
+        imageAttachedText: "पत्ती की तस्वीर जोड़ी गई है",
+        cameraTitle: "पत्ती का फोटो लें या अपलोड करें",
+        micTitle: "अपनी भाषा में बोलें",
+        recordingText: "🔴 रिकॉर्डिंग जारी है... बोलने के बाद माइक दोबारा दबाएं!",
+        welcomeTitle: "नमस्ते किसान भाइयों! 🙏",
+        welcomeDesc: "मैं आपका फसल सलाहकार हूँ। नीचे दिए गए विकल्पों पर क्लिक करें, माइक दबाएं या फोटो भेजें:",
+        chips: [
+          { label: "🥔 आलू की उन्नत किस्में", query: "आलू की अधिक पैदावार देने वाली रोगरोधी किस्में कौन सी हैं?" },
+          { label: "🍅 टमाटर के पत्ते पीले होना", query: "टमाटर के पत्ते पीले पड़ रहे हैं, रोकथाम के उपाय बताएं।" },
+          { label: "🌱 कपास गुलाबी सुंडी", query: "कपास में गुलाबी सुंडी के नियंत्रण हेतु अनुशंसित कीटनाशक और खुराक क्या है?" },
+          { label: "🌾 गेहूं खाद प्रबंधन", query: "गेहूं की फसल के लिए अनुशंसित खाद एवं उर्वरक की मात्रा बताएं।" }
+        ],
+        modalLoginTitle: "किसान लॉगिन (Farmer Login)",
+        modalRegTitle: "किसान पंजीकरण (New Registration)",
+        modalNameLabel: "पूरा नाम (Full Name)",
+        modalNamePlaceholder: "उदा. यश चव्हाण",
+        modalPhoneLabel: "मोबाइल नंबर (Phone Number)",
+        modalPhonePlaceholder: "10-अंकीय मोबाइल नंबर",
+        modalPassLabel: "पासवर्ड (Password)",
+        modalPassPlaceholder: "पासवर्ड डालें",
+        modalSubmitLogin: "लॉगिन करें",
+        modalSubmitReg: "पंजीकरण पूरा करें",
+        modalNoAccount: "खाता नहीं है?",
+        modalHaveAccount: "पहले से खाता है?",
+        modalToggleToReg: "नया पंजीकरण करें (Sign Up)",
+        modalToggleToLogin: "लॉगिन करें",
+        deleteConfirm: "क्या आप इस बातचीत को हमेशा के लिए हटाना चाहते हैं?",
+        errorMsg: "सलाह लोड करने में समस्या आई। कृपया पुनः प्रयास करें।",
+        defaultSessionTitle: "नई फसल बातचीत",
+        imageAnalysisPrompt: "कृपया इस पत्ती का निरीक्षण कर रोग एवं अनुशंसित कीटनाशक दवा की खुराक बताएं।"
+      },
+      en: {
+        appTitle: "Kisan Mitra - AI Crop Advisor",
+        resetText: "New Chat",
+        sidebarHeading: "Past Consultation History",
+        newSessionBtn: "Start New Crop Advisory",
+        authNotice: 'To save your chat history, please <a href="javascript:void(0)" onclick="openAuthModal(\'login\')" class="text-emerald-600 font-semibold underline">Log In</a>.',
+        loginBtnText: "Login",
+        typingText: "Consulting agronomy handbooks...",
+        inputPlaceholder: "Speak via microphone or type your question...",
+        imageAttachedText: "Leaf image attached",
+        cameraTitle: "Capture or upload leaf photo",
+        micTitle: "Speak in your language",
+        recordingText: "🔴 Recording audio... Tap mic again when finished!",
+        welcomeTitle: "Welcome, Farmer & Grower! 🌱",
+        welcomeDesc: "I am your crop advisor. Click any quick query below, tap the mic to speak, or upload a leaf photo:",
+        chips: [
+          { label: "🥔 Potato High-Yielding Varieties", query: "What are the recommended high-yielding and disease-resistant potato varieties?" },
+          { label: "🍅 Tomato Leaf Yellowing", query: "Tomato leaves are turning yellow with brown spots. What is the remedy and spray dosage?" },
+          { label: "🌱 Cotton Pink Bollworm", query: "What is the recommended control spray and dosage for pink bollworm in cotton?" },
+          { label: "🌾 Wheat Fertilizer Schedule", query: "What is the recommended fertilizer schedule and NPK dosage for wheat?" }
+        ],
+        modalLoginTitle: "Farmer Login",
+        modalRegTitle: "Farmer Registration",
+        modalNameLabel: "Full Name",
+        modalNamePlaceholder: "e.g. Yash Chavan",
+        modalPhoneLabel: "Mobile Phone Number",
+        modalPhonePlaceholder: "10-digit mobile number",
+        modalPassLabel: "Password",
+        modalPassPlaceholder: "Enter password",
+        modalSubmitLogin: "Log In",
+        modalSubmitReg: "Complete Registration",
+        modalNoAccount: "Don't have an account?",
+        modalHaveAccount: "Already registered?",
+        modalToggleToReg: "Sign Up Here",
+        modalToggleToLogin: "Log In Here",
+        deleteConfirm: "Are you sure you want to permanently delete this chat session?",
+        errorMsg: "Error retrieving advisory. Please verify FastAPI backend is running.",
+        defaultSessionTitle: "New Crop Discussion",
+        imageAnalysisPrompt: "Please analyze this leaf photo, diagnose the disease, and recommend spray treatments."
+      }
+    };
+
+    // DOM Elements
+    const chatContainer = document.getElementById("chatContainer");
+    const welcomeArea = document.getElementById("welcomeMessageArea");
+    const userInput = document.getElementById("userInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const micBtn = document.getElementById("micBtn");
+    const cameraBtn = document.getElementById("cameraBtn");
+    const typingIndicator = document.getElementById("typingIndicator");
+    const imageInput = document.getElementById("imageInput");
+    const imagePreviewContainer = document.getElementById("imagePreviewContainer");
+    const imagePreview = document.getElementById("imagePreview");
+    const imageAttachedText = document.getElementById("imageAttachedText");
+    const chatSidebar = document.getElementById("chatSidebar");
+    const sessionList = document.getElementById("sessionList");
+    const authNotice = document.getElementById("authNotice");
+    const btnLoginModal = document.getElementById("btnLoginModal");
+    const userProfile = document.getElementById("userProfile");
+    const userDisplayName = document.getElementById("userDisplayName");
+
+    // Dynamic UI Localization Engine
+    function updateAllUITexts() {
+      const t = translations[currentLang] || translations.mr;
+
+      // Header Elements
+      const appTitle = document.getElementById("appTitle");
+      const resetText = document.getElementById("resetText");
+      const typingText = document.getElementById("typingText");
+      const langSelect = document.getElementById("langSelect");
+      const loginBtnSpan = document.querySelector("#btnLoginModal span");
+
+      if (appTitle) appTitle.innerText = t.appTitle;
+      if (resetText) resetText.innerText = t.resetText;
+      if (typingText) typingText.innerText = t.typingText;
+      if (langSelect) langSelect.value = currentLang;
+      if (userInput) userInput.placeholder = t.inputPlaceholder;
+      if (loginBtnSpan) loginBtnSpan.innerText = t.loginBtnText;
+
+      // Controls Titles & Tooltips
+      if (cameraBtn) cameraBtn.title = t.cameraTitle;
+      if (micBtn) micBtn.title = t.micTitle;
+      if (imageAttachedText) imageAttachedText.innerText = t.imageAttachedText;
+
+      // Sidebar Texts
+      const sidebarHeadingSpan = document.querySelector("#sidebarHeading span");
+      const newSessionBtnSpan = document.querySelector("#newSessionBtn span");
+
+      if (sidebarHeadingSpan) sidebarHeadingSpan.innerText = t.sidebarHeading;
+      if (newSessionBtnSpan) newSessionBtnSpan.innerText = t.newSessionBtn;
+      if (authNotice) authNotice.innerHTML = t.authNotice;
+
+      // Update Modal Strings if it is open
+      updateAuthModalTexts();
+    }
+
+    function updateAuthModalTexts() {
+      const t = translations[currentLang] || translations.mr;
+      const title = document.getElementById("authModalTitle");
+      const submitBtn = document.getElementById("authSubmitBtn");
+      const toggleBtn = document.getElementById("authToggleBtn");
+      const togglePrompt = document.getElementById("authTogglePrompt");
+
+      const lblName = document.getElementById("lblFullName");
+      const lblPhone = document.getElementById("lblPhone");
+      const lblPassword = document.getElementById("lblPassword");
+
+      const regFullName = document.getElementById("regFullName");
+      const authPhone = document.getElementById("authPhone");
+      const authPassword = document.getElementById("authPassword");
+
+      if (lblName) lblName.innerText = t.modalNameLabel;
+      if (lblPhone) lblPhone.innerText = t.modalPhoneLabel;
+      if (lblPassword) lblPassword.innerText = t.modalPassLabel;
+
+      if (regFullName) regFullName.placeholder = t.modalNamePlaceholder;
+      if (authPhone) authPhone.placeholder = t.modalPhonePlaceholder;
+      if (authPassword) authPassword.placeholder = t.modalPassPlaceholder;
+
+      if (authMode === "register") {
+        if (title) title.innerText = t.modalRegTitle;
+        if (submitBtn) submitBtn.innerText = t.modalSubmitReg;
+        if (togglePrompt) togglePrompt.innerText = t.modalHaveAccount;
+        if (toggleBtn) toggleBtn.innerText = t.modalToggleToLogin;
+      } else {
+        if (title) title.innerText = t.modalLoginTitle;
+        if (submitBtn) submitBtn.innerText = t.modalSubmitLogin;
+        if (togglePrompt) togglePrompt.innerText = t.modalNoAccount;
+        if (toggleBtn) toggleBtn.innerText = t.modalToggleToReg;
+      }
+    }
+
+    function renderWelcome() {
+      if (!welcomeArea) return;
+      const t = translations[currentLang] || translations.mr;
+      
+      updateAllUITexts();
+
+      const chipsHtml = t.chips.map(chip => `
+        <button 
+          type="button" 
+          onclick="handleChat('${chip.query.replace(/'/g, "\\'")}')" 
+          class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-full transition shadow-xs font-medium cursor-pointer text-left"
+        >
+          ${chip.label}
+        </button>
+      `).join("");
+
+      welcomeArea.innerHTML = `
+        <div class="flex gap-3 items-start">
+          <div class="w-8 h-8 rounded-full bg-emerald-800 text-white flex items-center justify-center flex-none shadow-sm text-sm">
+            <i class="fa-solid fa-leaf"></i>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-2xl rounded-tl-none p-4 shadow-sm text-sm max-w-[85%] leading-relaxed">
+            <p class="font-semibold text-emerald-900 mb-1 text-base">${t.welcomeTitle}</p>
+            <p class="text-slate-600 mb-3">${t.welcomeDesc}</p>
+            <div class="flex flex-wrap gap-2 pt-1">
+              ${chipsHtml}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function changeLanguage(lang) {
+      if (window.speechSynthesis && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+      currentLang = lang;
+      localStorage.setItem("kisan_lang", lang);
+      renderWelcome();
+    }
+
+    function toggleSidebar() {
+      if (chatSidebar) chatSidebar.classList.toggle("-translate-x-full");
+    }
+
+    // Modal Handling
+    function openAuthModal(mode = "login") {
+      authMode = mode;
+      const modal = document.getElementById("authModal");
+      if (!modal) return;
+      modal.classList.remove("hidden");
+      
+      const nameField = document.getElementById("regNameField");
+      if (nameField) {
+        if (authMode === "register") {
+          nameField.classList.remove("hidden");
+        } else {
+          nameField.classList.add("hidden");
+        }
+      }
+      updateAuthModalTexts();
+    }
+
+    function closeAuthModal() {
+      const modal = document.getElementById("authModal");
+      if (modal) modal.classList.add("hidden");
+    }
+
+    function toggleAuthMode() {
+      openAuthModal(authMode === "login" ? "register" : "login");
+    }
+
+    async function submitAuthForm() {
+      const phoneInput = document.getElementById("authPhone");
+      const passInput = document.getElementById("authPassword");
+      const nameInput = document.getElementById("regFullName");
+
+      const phone = phoneInput ? phoneInput.value.trim() : "";
+      const password = passInput ? passInput.value.trim() : "";
+      const fullName = nameInput ? nameInput.value.trim() : "";
+
+      if (!phone || !password) {
+        alert(currentLang === "en" ? "Please enter phone number and password." : "कृपया मोबाईल नंबर आणि पासवर्ड प्रविष्ट करा.");
+        return;
+      }
+
+      const endpoint = authMode === "register" ? "/api/auth/register" : "/api/auth/login";
+      const payload = authMode === "register" 
+        ? { phone_number: phone, password: password, full_name: fullName || "शेतकरी मित्र", preferred_language: currentLang }
+        : { phone_number: phone, password: password };
+
+      try {
+        const res = await fetch(`${API_BASE}${endpoint}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Authentication failed");
+
+        authToken = data.access_token;
+        localStorage.setItem("kisan_token", authToken);
+        localStorage.setItem("kisan_user", JSON.stringify(data.user));
+
+        updateUserUI(true, data.user.full_name);
+        closeAuthModal();
+        await loadChatSessions();
+      } catch (err) {
+        alert(`${authMode === "register" ? "नोंदणी अयशस्वी" : "लॉगिन अयशस्वी"}: ${err.message}`);
+      }
+    }
+
+    function handleLogout() {
+      authToken = null;
+      currentSessionId = null;
+      localStorage.removeItem("kisan_token");
+      localStorage.removeItem("kisan_user");
+      localStorage.removeItem("kisan_session_id");
+
+      updateUserUI(false);
+      startNewChatSession();
+    }
+
+    function updateUserUI(isLoggedIn, name = "") {
+      if (isLoggedIn) {
+        if (btnLoginModal) btnLoginModal.classList.add("hidden");
+        if (userProfile) userProfile.classList.remove("hidden");
+        if (userDisplayName) userDisplayName.innerText = name || "शेतकरी";
+        if (authNotice) authNotice.classList.add("hidden");
+      } else {
+        if (btnLoginModal) btnLoginModal.classList.remove("hidden");
+        if (userProfile) userProfile.classList.add("hidden");
+        if (userDisplayName) userDisplayName.innerText = "";
+        if (sessionList) sessionList.innerHTML = "";
+        if (authNotice) authNotice.classList.remove("hidden");
+      }
+    }
+
+    // --- Core Chat Submission ---
+    async function handleChat(queryText = null) {
+      const text = (queryText !== null ? queryText : userInput.value).trim();
+      const imageToSend = currentBase64Image;
+
+      if (!text && !imageToSend) return;
+
+      const t = translations[currentLang] || translations.mr;
+      const promptToSend = text || t.imageAnalysisPrompt;
+      
+      appendUserMessage(promptToSend, imageToSend);
+      removeSelectedImage();
+      if (userInput) {
+        userInput.value = "";
+        userInput.style.height = "auto";
+      }
+
+      if (typingIndicator) typingIndicator.classList.remove("hidden");
+      if (sendBtn) sendBtn.disabled = true;
+      scrollToBottom();
+
+      // Ensure session exists if user is logged in
+      if (authToken && !currentSessionId) {
+        try {
+          const sTitle = text ? (text.substring(0, 30) + "...") : "📷 " + t.imageAttachedText;
+          const sRes = await fetch(`${API_BASE}/api/history/sessions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ title: sTitle })
+          });
+          if (sRes.ok) {
+            const sData = await sRes.json();
+            currentSessionId = sData.id;
+            localStorage.setItem("kisan_session_id", currentSessionId);
+          }
+        } catch (e) {
+          console.warn("Auto-session creation failed:", e);
+        }
+      }
+
+      const headers = { "Content-Type": "application/json" };
+      if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+
+      const payload = {
+        query: promptToSend,
+        language: currentLang,
+        session_id: currentSessionId ? parseInt(currentSessionId) : null,
+        image_data: imageToSend,
+        audio_data: null,
+        history: chatHistory
+      };
+
+      try {
+        const response = await fetch(`${API_BASE}/api/chat`, {
+          method: "POST",
+          headers: headers,
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+        const botReply = data.response || data.answer || "";
+
+        chatHistory.push({ role: "user", content: promptToSend });
+        chatHistory.push({ role: "assistant", content: botReply });
+
+        appendBotMessage(botReply);
+
+        if (authToken) await loadChatSessions();
+      } catch (err) {
+        console.error("Chat error:", err);
+        appendBotMessage(`⚠️ ${t.errorMsg}\n\n*Error:* ${err.message}`);
+      } finally {
+        if (typingIndicator) typingIndicator.classList.add("hidden");
+        if (sendBtn) sendBtn.disabled = false;
+        removeSelectedImage();
+        if (userInput) userInput.focus();
+        scrollToBottom();
+      }
+    }
+
+    // Sessions & Messages
+    async function startNewChatSession(title = null) {
+      if (window.speechSynthesis && window.speechSynthesis.speaking) window.speechSynthesis.cancel();
+      chatHistory = [];
+      currentSessionId = null;
+      localStorage.removeItem("kisan_session_id");
+
+      const bubbles = chatContainer.querySelectorAll(".flex:not(#welcomeMessageArea *)");
+      bubbles.forEach(b => b.remove());
+      renderWelcome();
+
+      const t = translations[currentLang] || translations.mr;
+      const finalTitle = title || t.defaultSessionTitle;
+
+      if (authToken) {
+        try {
+          const res = await fetch(`${API_BASE}/api/history/sessions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ title: finalTitle })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            currentSessionId = data.id;
+            localStorage.setItem("kisan_session_id", currentSessionId);
+            loadChatSessions();
+          }
+        } catch (e) {
+          console.error("Error creating session:", e);
+        }
+      }
+    }
+
+    // --- Sessions & History Management ---
+    async function loadChatSessions() {
+      if (!authToken || !sessionList) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/history/sessions`, {
+          headers: { "Authorization": `Bearer ${authToken}` }
+        });
+        if (!res.ok) return;
+
+        const sessions = await res.json();
+        sessionList.innerHTML = "";
+
+        sessions.forEach(s => {
+          const li = document.createElement("li");
+          const isActive = s.id == currentSessionId;
+          li.className = `group p-2.5 rounded-lg text-xs cursor-pointer flex items-center justify-between transition ${
+            isActive ? "bg-emerald-100 text-emerald-900 font-semibold" : "hover:bg-slate-100 text-slate-700"
+          }`;
+          li.innerHTML = `
+            <div class="truncate flex-1 pr-2" onclick="switchSession(${s.id})">
+              <i class="fa-regular fa-message mr-1.5 opacity-60"></i>
+              <span>${escapeHtml(s.title || "नवीन संवाद")}</span>
+            </div>
+            <div class="flex items-center gap-1.5 flex-none">
+              <span class="text-[10px] text-slate-400">${s.created_at.split(" ")[0]}</span>
+              <button 
+                type="button" 
+                onclick="event.stopPropagation(); deleteSession(${s.id})" 
+                title="चर्चा हटवा (Delete)"
+                class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 p-1 transition"
+              >
+                <i class="fa-solid fa-trash-can text-xs"></i>
+              </button>
+            </div>
+          `;
+          sessionList.appendChild(li);
+        });
+      } catch (err) {
+        console.error("Failed to load sessions:", err);
+      }
+    }
+
+    async function deleteSession(sessionId) {
+      const t = translations[currentLang] || translations.mr;
+      const confirmDelete = confirm(t.deleteConfirm);
+      if (!confirmDelete) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/history/sessions/${sessionId}`, {
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${authToken}` }
+        });
+
+        if (!res.ok) throw new Error("Failed to delete session");
+
+        if (currentSessionId == sessionId) {
+          startNewChatSession();
+        } else {
+          loadChatSessions();
+        }
+      } catch (err) {
+        console.error("Delete error:", err);
+        alert(currentLang === "en" ? "Error deleting session. Please try again." : "चर्चा हटवताना अडचण आली. कृपया पुन्हा प्रयत्न करा.");
+      }
+    }
+
+    async function switchSession(sessionId) {
+      if (window.speechSynthesis && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+
+      removeSelectedImage();
+      currentSessionId = sessionId;
+      localStorage.setItem("kisan_session_id", sessionId);
+
+      const bubbles = chatContainer.querySelectorAll(".flex:not(#welcomeMessageArea *)");
+      bubbles.forEach(b => b.remove());
+
+      try {
+        const res = await fetch(`${API_BASE}/api/history/sessions/${sessionId}`, {
+          headers: { "Authorization": `Bearer ${authToken}` }
+        });
+        if (!res.ok) return;
+
+        const messages = await res.json();
+        chatHistory = [];
+        messages.forEach(m => {
+          if (m.sender === "user") {
+            appendUserMessage(m.text);
+            chatHistory.push({ role: "user", content: m.text });
+          } else {
+            appendBotMessage(m.text);
+            chatHistory.push({ role: "assistant", content: m.text });
+          }
+        });
+
+        await loadChatSessions();
+        if (window.innerWidth < 640) toggleSidebar();
+      } catch (err) {
+        console.error("Failed to fetch session messages:", err);
+      }
+    }
+
+    function appendUserMessage(text, imageSrc) {
+      const bubble = document.createElement("div");
+      bubble.className = "flex justify-end";
+      
+      let imgTag = "";
+      if (imageSrc) {
+        imgTag = `<img src="${imageSrc}" class="w-48 h-36 object-cover rounded-lg mb-2 border border-emerald-500/40 shadow-xs" />`;
+      }
+
+      bubble.innerHTML = `
+        <div class="bg-emerald-700 text-white rounded-2xl rounded-tr-none p-3 text-sm max-w-[85%] shadow-sm leading-relaxed">
+          ${imgTag}
+          <div class="whitespace-pre-wrap">${escapeHtml(text)}</div>
+        </div>
+      `;
+      chatContainer.appendChild(bubble);
+      scrollToBottom();
+    }
+
+    function appendBotMessage(markdownText) {
+      const safeText = (typeof markdownText === "string" ? markdownText : "").trim() 
+        || "माफ करा, उत्तर उपलब्ध नाही. कृपया पुन्हा प्रयत्न करा.";
+
+      let parsedHtml = "";
+      try {
+        parsedHtml = (typeof marked !== "undefined" && typeof marked.parse === "function")
+          ? marked.parse(safeText)
+          : safeText.replace(/\n/g, "<br>");
+      } catch (err) {
+        parsedHtml = safeText.replace(/\n/g, "<br>");
+      }
+
+      const bubble = document.createElement("div");
+      bubble.className = "flex gap-3 items-start group";
+
+      bubble.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-emerald-800 text-white flex items-center justify-center flex-none shadow-sm text-sm">
+          <i class="fa-solid fa-leaf"></i>
+        </div>
+        <div class="relative bg-white border border-slate-200 rounded-2xl rounded-tl-none p-4 shadow-sm text-sm max-w-[85%] leading-relaxed prose-bot text-slate-800">
+          <button 
+            type="button" 
+            onclick="speakText(this.closest('.relative').getAttribute('data-raw-text'), this)" 
+            title="Read advisory aloud" 
+            class="absolute top-3 right-3 text-slate-400 hover:text-emerald-700 bg-slate-50 hover:bg-emerald-50 border border-slate-200 p-1.5 rounded-lg transition"
+          >
+            <i class="fa-solid fa-volume-high text-xs"></i>
+          </button>
+          <div class="bot-content pr-6">${parsedHtml}</div>
+        </div>
+      `;
+
+      bubble.querySelector('.relative').setAttribute('data-raw-text', safeText);
+      chatContainer.appendChild(bubble);
+      scrollToBottom();
+    }
+
+    function speakText(rawText, btnElement) {
+      if (!('speechSynthesis' in window)) return;
+
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        if (currentActiveSpeakerBtn) {
+          currentActiveSpeakerBtn.classList.remove("text-emerald-600", "bg-emerald-100");
+          currentActiveSpeakerBtn = null;
+        }
+        return;
+      }
+
+      const cleanText = rawText
+        .replace(/\*\*(.*?)\*\*/g, '$1')
+        .replace(/\*(.*?)\*/g, '$1')
+        .replace(/#/g, '')
+        .replace(/•/g, '')
+        .replace(/\[.*?\]/g, '')
+        .replace(/[-_]{2,}/g, '');
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      const targetLang = langCodes[currentLang] || "mr-IN";
+      utterance.lang = targetLang;
+      utterance.rate = 0.95;
+
+      const voices = window.speechSynthesis.getVoices();
+      const matched = voices.find(v => v.lang === targetLang || v.lang.startsWith(currentLang));
+      if (matched) utterance.voice = matched;
+
+      if (btnElement) {
+        currentActiveSpeakerBtn = btnElement;
+        btnElement.classList.add("text-emerald-600", "bg-emerald-100");
+      }
+
+      utterance.onend = utterance.onerror = () => {
+        if (currentActiveSpeakerBtn) {
+          currentActiveSpeakerBtn.classList.remove("text-emerald-600", "bg-emerald-100");
+          currentActiveSpeakerBtn = null;
+        }
+      };
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function toggleVoiceRecognition(event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+
+      const t = translations[currentLang] || translations.mr;
+
+      if (isRecording) {
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+          mediaRecorder.stop();
+        } else if (recognition) {
+          recognition.stop();
+        }
+        isRecording = false;
+        micBtn.classList.remove("mic-recording");
+        userInput.placeholder = t.inputPlaceholder;
+        return;
+      }
+
+      if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+        try {
+          const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+          recognition = new SpeechRec();
+          recognition.continuous = false;
+          recognition.interimResults = false;
+          recognition.lang = langCodes[currentLang] || "mr-IN";
+
+          recognition.onstart = () => {
+            isRecording = true;
+            micBtn.classList.add("mic-recording");
+            userInput.placeholder = t.recordingText;
+          };
+
+          recognition.onresult = (ev) => {
+            const transcript = ev.results[0][0].transcript;
+            userInput.value = transcript;
+            isRecording = false;
+            micBtn.classList.remove("mic-recording");
+            userInput.placeholder = t.inputPlaceholder;
+            handleChat(transcript);
+          };
+
+          recognition.onerror = recognition.onend = () => {
+            isRecording = false;
+            micBtn.classList.remove("mic-recording");
+            userInput.placeholder = t.inputPlaceholder;
+          };
+
+          recognition.start();
+          return;
+        } catch (e) {
+          console.warn("Speech API failed, trying media recorder fallback");
+        }
+      }
+
+      // Stream fallback
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+          mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+          mediaRecorder.onstop = () => {
+            isRecording = false;
+            micBtn.classList.remove("mic-recording");
+            userInput.placeholder = t.inputPlaceholder;
+            stream.getTracks().forEach(tr => tr.stop());
+            const blob = new Blob(audioChunks, { type: 'audio/webm' });
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            reader.onloadend = () => {
+              appendUserMessage("🎤 [Voice Query]", currentBase64Image);
+              sendAudioPayload(reader.result);
+            };
+          };
+          mediaRecorder.start();
+          isRecording = true;
+          micBtn.classList.add("mic-recording");
+          userInput.placeholder = t.recordingText;
+        }).catch(err => {
+          alert(currentLang === "en" ? "Microphone permission was denied." : "मायक्रोफोन परवानगी नाकारली गेली आहे.");
+        });
+      }
+    }
+
+    async function sendAudioPayload(base64Audio) {
+      if (typingIndicator) typingIndicator.classList.remove("hidden");
+      if (sendBtn) sendBtn.disabled = true;
+      scrollToBottom();
+
+      const headers = { "Content-Type": "application/json" };
+      if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/chat`, {
+          method: "POST",
+          headers: headers,
+          body: JSON.stringify({
+            query: "",
+            language: currentLang,
+            session_id: currentSessionId ? parseInt(currentSessionId) : null,
+            audio_data: base64Audio,
+            image_data: currentBase64Image,
+            history: chatHistory
+          })
+        });
+        const data = await res.json();
+        const reply = data.response || data.answer || "";
+        appendBotMessage(reply);
+        if (authToken) loadChatSessions();
+      } catch (e) {
+        const t = translations[currentLang] || translations.mr;
+        appendBotMessage(`⚠️ ${t.errorMsg}`);
+      } finally {
+        if (typingIndicator) typingIndicator.classList.add("hidden");
+        if (sendBtn) sendBtn.disabled = false;
+        scrollToBottom();
+      }
+    }
+
+    // --- Image Handling & Canvas Compression ---
+    function compressImage(file, maxWidth = 1024, maxHeight = 1024, quality = 0.75) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => {
+          const img = new Image();
+          img.src = e.target.result;
+          img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+              }
+            } else {
+              if (height > maxHeight) {
+                width = Math.round((width * maxHeight) / height);
+                height = maxHeight;
+              }
+            }
+
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, width, height);
+
+            resolve(canvas.toDataURL("image/jpeg", quality));
+          };
+          img.onerror = reject;
+        };
+        reader.onerror = reject;
+      });
+    }
+
+    async function handleImageSelection(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      try {
+        currentBase64Image = await compressImage(file);
+        imagePreview.src = currentBase64Image;
+        imagePreviewContainer.classList.remove("hidden");
+      } catch (err) {
+        console.error("Image compression error:", err);
+        alert(currentLang === "en" ? "Error selecting image. Please try again." : "छायाचित्र निवडताना त्रुटी आली. कृपया पुन्हा प्रयत्न करा.");
+      }
+    }
+
+    function removeSelectedImage() {
+      currentBase64Image = null;
+      if (imageInput) imageInput.value = "";
+      if (imagePreview) imagePreview.src = "";
+      if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        handleChat();
+      }
+    }
+
+    function scrollToBottom() {
+      if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.innerText = text;
+      return div.innerHTML;
+    }
+
+    // --- Protected Startup Lifecycle ---
+    window.addEventListener("DOMContentLoaded", () => {
+      // 1. Initial Render & Localization
+      try {
+        renderWelcome();
+      } catch (err) {
+        console.error("Error in renderWelcome:", err);
+      }
+
+      // 2. Auth State Sync
+      try {
+        const savedUser = localStorage.getItem("kisan_user");
+        if (authToken && savedUser) {
+          const user = JSON.parse(savedUser);
+          updateUserUI(true, user.full_name);
+          loadChatSessions();
+          if (currentSessionId) switchSession(currentSessionId);
+        } else {
+          updateUserUI(false);
+        }
+      } catch (e) {
+        console.warn("Corrupted auth cache cleared:", e);
+        handleLogout();
+      }
+
+      // 3. Textarea dynamic height
+      if (userInput) {
+        userInput.addEventListener("input", function() {
+          this.style.height = "auto";
+          this.style.height = this.scrollHeight + "px";
+        });
+      }
+
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+      }
+    });
+  </script>
+</body>
+</html>
