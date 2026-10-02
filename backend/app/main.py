@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import List, Optional
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 # Mount frontend static directory
 
@@ -74,9 +76,18 @@ class ChatResponse(BaseModel):
     transcription: Optional[str] = ""
     status: str = "success"
 
-@app.get("/")
+@app.get("/health")
 def health_check():
     return {"status": "healthy", "service": "Kisan Mitra Advisory"}
+
+# Mount frontend assets and serve index.html at root ("/")
+FRONTEND_DIR = PROJECT_ROOT / "frontend"
+if FRONTEND_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+
+    @app.get("/", include_in_schema=False)
+    def serve_homepage():
+        return FileResponse(FRONTEND_DIR / "index.html")
 
 GREETING_WORDS = {
     "hello", "hi", "hey", "namaste", "namaskar",
