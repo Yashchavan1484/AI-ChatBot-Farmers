@@ -301,8 +301,12 @@ def run_farmer_assistant(
     # 3. Retrieve handbook context via RAG for pure text agricultural topics
     # CLOUD SAFETY: Skip local ChromaDB on image uploads to avoid 512MB RAM OOM crash
     rag_context = ""
-    if not has_image and needs_rag(final_query):
-        print(">>> [RAG GATE]: Agricultural text query. Querying handbook vectorstore...")
+    # Only attempt local vectorstore if running locally or if explicit env flag is set
+    # On Render cloud (RENDER=true is automatically set by Render), bypass heavy PyTorch embeddings
+    is_render = os.getenv("RENDER", "false").lower() == "true"
+    
+    if not is_render and not has_image and needs_rag(final_query):
+        print(">>> [LOCAL DEV]: Querying ChromaDB handbook vectorstore...")
         try:
             if hasattr(search_local_handbooks, "invoke"):
                 rag_context = search_local_handbooks.invoke({"query": final_query})
@@ -311,11 +315,11 @@ def run_farmer_assistant(
             else:
                 rag_context = search_local_handbooks(final_query)
         except Exception as e:
-            print(f">>> [RAG RETRIEVAL WARNING]: {e}. Continuing with general agronomy knowledge.")
+            print(f">>> [RAG RETRIEVAL WARNING]: {e}. Falling back to foundation model.")
             rag_context = ""
-    elif has_image:
-        print(">>> [VISION GATE]: Leaf image detected. Relying directly on Gemini Multimodal Pathology.")
-
+    else:
+        if is_render:
+            print(">>> [CLOUD PRODUCTION]: Relying directly on Groq Llama 3.3 agronomy intelligence.")
     # 4. Prepare language and contextual prompt
     lang_map = {
         "mr": "Respond completely in Marathi (मराठी).",
