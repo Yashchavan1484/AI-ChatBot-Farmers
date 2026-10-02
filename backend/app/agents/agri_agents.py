@@ -239,7 +239,7 @@ def call_groq_direct(prompt: str, history: list = None) -> str:
 
         chat_completion = client.chat.completions.create(
             messages=messages,
-            model="qwen/qwen3.8-27b",
+            model="openai/gpt-oss-120b",
             temperature=0.3,
             max_tokens=1024
         )
