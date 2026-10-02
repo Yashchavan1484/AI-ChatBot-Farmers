@@ -813,40 +813,53 @@
       }
     }
 
-    async function switchSession(sessionId) {
-      if (window.speechSynthesis && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-      }
-
-      removeSelectedImage();
-      currentSessionId = sessionId;
-      localStorage.setItem("kisan_session_id", sessionId);
-
-      const bubbles = chatContainer.querySelectorAll(".flex:not(#welcomeMessageArea *)");
-      bubbles.forEach(b => b.remove());
+   async function switchSession(sessionId) {
+      if (window.speechSynthesis && window.speechSynthesis.speaking) window.speechSynthesis.cancel();
+      if (!authToken) return;
 
       try {
         const res = await fetch(`${API_BASE}/api/history/sessions/${sessionId}`, {
-          headers: { "Authorization": `Bearer ${authToken}` }
-        });
-        if (!res.ok) return;
-
-        const messages = await res.json();
-        chatHistory = [];
-        messages.forEach(m => {
-          if (m.sender === "user") {
-            appendUserMessage(m.text);
-            chatHistory.push({ role: "user", content: m.text });
-          } else {
-            appendBotMessage(m.text);
-            chatHistory.push({ role: "assistant", content: m.text });
+          headers: {
+            "Authorization": `Bearer ${authToken}`
           }
         });
 
-        await loadChatSessions();
-        if (window.innerWidth < 640) toggleSidebar();
+        if (!res.ok) {
+          if (res.status === 401) {
+            console.warn("Session expired or unauthorized. Starting clean session.");
+            startNewChatSession();
+          }
+          return;
+        }
+
+        const sessionData = await res.json();
+        currentSessionId = sessionId;
+        localStorage.setItem("kisan_session_id", currentSessionId);
+
+        // Clear current active chat UI (except welcome)
+        const bubbles = chatContainer.querySelectorAll(".flex:not(#welcomeMessageArea *)");
+        bubbles.forEach(b => b.remove());
+
+        // Restore chatHistory array for backend context
+        chatHistory = [];
+
+        // Render previous messages
+        if (sessionData.messages && sessionData.messages.length > 0) {
+          sessionData.messages.forEach(msg => {
+            const isUser = msg.sender === "user";
+            chatHistory.push({
+              role: isUser ? "user" : "assistant",
+              content: msg.message_text
+            });
+            appendMessage(msg.message_text, isUser, false);
+          });
+        }
+
+        // Re-render sidebar to highlight active item
+        loadChatSessions();
+
       } catch (err) {
-        console.error("Failed to fetch session messages:", err);
+        console.error("Failed to switch session:", err);
       }
     }
 
