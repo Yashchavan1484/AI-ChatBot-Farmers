@@ -359,7 +359,7 @@ def run_farmer_assistant(
         if provider.startswith("ollama"):
             return _clean_content(call_ollama(prompt_with_instructions, history=history))
         elif provider.startswith("groq"):
-            return _clean_content(call_groq(prompt_with_instructions, history=history))
+            return _clean_content(call_groq_direct(prompt_with_instructions, history=history))
 
     # 6. Multimodal Vision Execution (Gemini)
     llm = get_llm(has_image=has_image)
