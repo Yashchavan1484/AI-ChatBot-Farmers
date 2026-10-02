@@ -1,9 +1,10 @@
 import sys
 from pathlib import Path
 import os
+import re
 import base64
 import tempfile
-
+import requests
 
 # Ensure project root is in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -95,7 +96,6 @@ CONTEXT GROUNDING:
 - If the retrieved context contains relevant crop, pest, or chemical recommendations, prioritize those details accurately.
 """
 
-
 WHITELISTED_DOMAINS = [
     "agritech.tnau.ac.in",
     "cibrc.gov.in",
@@ -118,10 +118,17 @@ AGRI_KEYWORDS = {
     "disease", "spray", "blight", "rot", "dose", "fertilizer", "pest", "seed"
 }
 
-GREETINGS = {"hi", "hello", "hey", "namaste", "namaskar", "नमस्कार", "नमस्ते"}
+GREETINGS = {
+    "hi", "hello", "hey", "namaste", "namaskar",
+    "नमस्कार", "नमस्ते", "ram ram", "राम राम", "pranam"
+}
 
+def is_simple_greeting(text: str) -> bool:
+    if not text:
+        return False
+    clean = text.strip().lower()
+    return clean in GREETINGS or clean.startswith(("hi ", "hello ", "hey "))
 
-        
 def needs_rag(query: str) -> bool:
     """Bypasses ChromaDB vector search for casual greetings or non-agri banter."""
     clean_query = query.lower()
@@ -130,28 +137,37 @@ def needs_rag(query: str) -> bool:
     return len(query.strip().split()) > 4
 
 def _clean_content(content) -> str:
-    """Helper to convert Gemini response blocks to clean text string."""
+    """Converts LLM response blocks to a clean text string."""
     if isinstance(content, str):
-        return content
-    if isinstance(content, list):
+        text = content
+    elif isinstance(content, list):
         text_parts = []
         for part in content:
             if isinstance(part, dict) and "text" in part:
                 text_parts.append(part["text"])
             elif hasattr(part, "text"):
                 text_parts.append(part.text)
-        return "\n".join(text_parts)
-    return str(content)
+        text = "\n".join(text_parts)
+    else:
+        text = str(content)
+        
+    cleaned = re.sub(
+        r"^(Since the user|Based on the user|I will respond|As an agronomist|Here is).*?:\s*",
+        "",
+        text,
+        flags=re.IGNORECASE | re.MULTILINE
+    )
+    return cleaned.strip()
 
 def transcribe_audio_base64(audio_base64: str) -> str:
     """Transcribes incoming farmer voice audio using Groq Whisper."""
     groq_api_key = os.getenv("GROQ_API_KEY")
     if not groq_api_key:
-        raise ValueError("GROQ_API_KEY is required for voice transcription.")
+        print("[AUDIO WARNING] GROQ_API_KEY is not set. Skipping audio transcription.")
+        return ""
     
     client = Groq(api_key=groq_api_key)
 
-    # Detect extension from Data URL header
     ext = "webm"
     if "," in audio_base64:
         header, audio_base64 = audio_base64.split(",", 1)
@@ -162,7 +178,12 @@ def transcribe_audio_base64(audio_base64: str) -> str:
         elif "ogg" in header:
             ext = "ogg"
 
-    audio_bytes = base64.b64decode(audio_base64)
+    try:
+        audio_bytes = base64.b64decode(audio_base64)
+    except Exception as e:
+        print(f"[AUDIO ERROR] Base64 decode failed: {e}")
+        return ""
+
     if len(audio_bytes) < 1000:
         print("[AUDIO WARNING] Audio clip was too short or empty.")
         return ""
@@ -179,8 +200,9 @@ def transcribe_audio_base64(audio_base64: str) -> str:
                 response_format="verbose_json"
             )
         
-        # Safely extract text whether response is object or dict
-        result_text = getattr(transcription, "text", None) or (transcription.get("text") if isinstance(transcription, dict) else str(transcription))
+        result_text = getattr(transcription, "text", None) or (
+            transcription.get("text") if isinstance(transcription, dict) else str(transcription)
+        )
         print(f"\n[VOICE TRANSCRIBED SUCCESS]: '{result_text}'\n")
         return result_text.strip()
     except Exception as e:
@@ -190,16 +212,48 @@ def transcribe_audio_base64(audio_base64: str) -> str:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
-GREETINGS = {
-    "hi", "hello", "hey", "namaste", "namaskar", 
-    "नमस्कार", "नमस्ते", "ram ram", "राम राम", "pranam"
-}
+def call_groq(prompt: str, history: list = None) -> str:
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    if not groq_api_key:
+        return "⚠️ GROQ_API_KEY is not set in environment."
+    client = Groq(api_key=groq_api_key)
+    messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
+    if history:
+        for turn in history:
+            messages.append({"role": turn.get("role", "user"), "content": turn.get("content", "")})
+    messages.append({"role": "user", "content": prompt})
 
-def is_simple_greeting(text: str) -> bool:
-    if not text:
-        return False
-    clean = text.strip().lower()
-    return clean in GREETINGS or clean.startswith(("hi ", "hello ", "hey "))
+    chat_completion = client.chat.completions.create(
+        messages=messages,
+        model="llama-3.3-70b-versatile",
+        temperature=0.3,
+    )
+    return chat_completion.choices[0].message.content
+
+def call_ollama(prompt: str, history: list = None, model_name: str = "llama3") -> str:
+    ollama_url = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+    messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
+    if history:
+        for turn in history:
+            messages.append({"role": turn.get("role", "user"), "content": turn.get("content", "")})
+    messages.append({"role": "user", "content": prompt})
+
+    try:
+        response = requests.post(
+            f"{ollama_url}/api/chat",
+            json={
+                "model": model_name,
+                "messages": messages,
+                "stream": False
+            },
+            timeout=60
+        )
+        if response.status_code == 200:
+            return response.json().get("message", {}).get("content", "")
+        else:
+            return f"Ollama error: HTTP {response.status_code}"
+    except requests.exceptions.ConnectionError:
+        return "⚠️ Ollama is unreachable. Verify Ollama is running and OLLAMA_BASE_URL is reachable."
 
 def run_farmer_assistant(
     query: str = "", 
@@ -207,66 +261,24 @@ def run_farmer_assistant(
     history: list = None, 
     image_data: str = None, 
     audio_data: str = None, 
-    max_iterations: int = 4
-):
-    print(f">>> [ASSISTANT ENTRY]: query='{query}', lang='{language}'")
-    
-    if is_simple_greeting(query) and not image_data:
-        if language == "mr":
-            msg = "नमस्कार शेतकरी बंधू! मी आपला कृषी सल्लागार किसान मित्र आहे. आपल्या पिकाबद्दल किंवा फवारणीबद्दल काय प्रश्न आहे?"
-        elif language == "hi":
-            msg = "नमस्ते किसान साथी! मैं आपका कृषि सलाहकार किसान मित्र हूँ। आज आपकी फसल या कीट नियंत्रण में क्या मदद कर सकता हूँ?"
-        else:
-            msg = "Hello! I am Kisan Mitra, your crop advisor. How can I assist you with your crops, disease diagnosis, or spray schedules today?"
-        
-        print(f">>> [GREETING TRIGGERED]: returning greeting")
-        return msg
-        
-    has_image = bool(image_data)
-    llm = get_llm(has_image=bool(image_data))
-
-    context = ""
-    if needs_rag(query) or has_image:
-        print(">>> [RAG GATE]: Agricultural intent detected. Querying ChromaDB...")
-        try:
-            if hasattr(search_local_handbooks, "invoke"):
-                context = search_local_handbooks.invoke({"query": query})
-            elif hasattr(search_local_handbooks, "func"):
-                context = search_local_handbooks.func(query)
-            else:
-                context = search_local_handbooks(query)
-        except Exception as e:
-            print(f">>> [RAG RETRIEVAL WARNING]: {e}. Falling back to foundation LLM.")
-            context = ""
-    else:
-        print(">>> [RAG GATE]: Conversational query detected. Skipping ChromaDB.")
-
-    # FALLBACK LOGIC: If context is empty, instruct the LLM to rely on standard agronomy principles
-    if context and str(context).strip():
-        user_content = (
-            f"Reference Data from University Handbooks:\n{context}\n\n"
-            f"Farmer Question:\n{query}\n\n"
-            f"Use the handbook data above. If details (like climate or weather) are not covered in the handbooks, "
-            f"complete the answer using standard ICAR / State Agricultural University agronomic knowledge."
-        )
-    else:
-        user_content = (
-            f"Farmer Question:\n{query}\n\n"
-            f"Answer this query directly using your expert agronomic training according to standard ICAR guidelines. "
-            f"Provide clear, practical, field-tested guidance."
-        )
+    max_iterations: int = 4,
+    provider: str = "gemini",
+    **kwargs
+) -> str:
+    """Main agricultural advisory agent supporting audio, text, RAG, and image input."""
+    print(f">>> [ASSISTANT ENTRY]: query='{query}', lang='{language}', provider='{provider}'")
 
     # 1. Process voice audio if submitted
     transcribed_text = ""
     if audio_data and isinstance(audio_data, str) and len(audio_data.strip()) > 0:
-        print("\n>>> [STEP 1] Decoding and sending audio to Groq Whisper...")
+        print("\n>>> [STEP 1] Transcribing incoming audio with Groq Whisper...")
         transcribed_text = transcribe_audio_base64(audio_data)
         print(f">>> [STEP 2] Transcribed Text: '{transcribed_text}'\n")
 
-    # Combine text query with audio transcription
+    # Merge query text and transcribed audio
     final_query = f"{query.strip()} {transcribed_text.strip()}".strip()
 
-    # If nothing was typed and voice couldn't be heard
+    # Fast fallback if audio was unintelligible and no query was typed
     if not final_query and not image_data:
         fallback_msg = {
             "mr": "माफ करा, तुमचा आवाज स्पष्ट ऐकू आला नाही. कृपया पुन्हा माईक दाबून बोला किंवा टाईप करा.",
@@ -275,23 +287,60 @@ def run_farmer_assistant(
         }
         return fallback_msg.get(language, fallback_msg["mr"])
 
-    # 2. Add language instruction to the actual question
+    # 2. Fast-Path: Simple greetings without image inspection
+    if is_simple_greeting(final_query) and not image_data:
+        if language == "mr":
+            return "नमस्कार शेतकरी बंधू! मी आपला कृषी सल्लागार किसान मित्र आहे. आपल्या पिकाबद्दल किंवा फवारणीबद्दल काय प्रश्न आहे?"
+        elif language == "hi":
+            return "नमस्ते किसान साथी! मैं आपका कृषि सलाहकार किसान मित्र हूँ। आज आपकी फसल या कीट नियंत्रण में क्या मदद कर सकता हूँ?"
+        else:
+            return "Hello! I am Kisan Mitra, your crop advisor. How can I assist you with your crops, disease diagnosis, or spray schedules today?"
+
+    # 3. Retrieve handbook context via RAG for agricultural topics
+    has_image = bool(image_data and isinstance(image_data, str) and image_data.startswith("data:image"))
+    rag_context = ""
+    if needs_rag(final_query) or has_image:
+        print(">>> [RAG GATE]: Agricultural intent detected. Querying handbook vectorstore...")
+        try:
+            if hasattr(search_local_handbooks, "invoke"):
+                rag_context = search_local_handbooks.invoke({"query": final_query or "crop leaf disease diagnosis"})
+            elif hasattr(search_local_handbooks, "func"):
+                rag_context = search_local_handbooks.func(final_query or "crop leaf disease diagnosis")
+            else:
+                rag_context = search_local_handbooks(final_query or "crop leaf disease diagnosis")
+        except Exception as e:
+            print(f">>> [RAG RETRIEVAL WARNING]: {e}. Continuing with general agronomy knowledge.")
+            rag_context = ""
+
+    # 4. Prepare language and contextual prompt
     lang_map = {
         "mr": "Respond completely in Marathi (मराठी).",
         "hi": "Respond completely in Hindi (हिन्दी).",
         "en": "Respond completely in English."
     }
-    lang_note = lang_map.get(language, "Respond in Marathi.")
-    instruction_prompt = f"[Language Requirement: {lang_note}]\nUser question: {final_query}"
+    lang_note = lang_map.get(language, "Respond in the language chosen by user.")
 
-    has_image = bool(image_data and isinstance(image_data, str) and image_data.startswith("data:image"))
+    context_block = f"\n\n[Reference Data from Handbooks]:\n{rag_context}" if rag_context else ""
+    prompt_with_instructions = (
+        f"[Language Requirement: {lang_note}]\n"
+        f"Farmer Question: {final_query if final_query else 'कृपया या पानाचे निरीक्षण करून रोग व फवारणी औषधांची मात्रा सांगा.'}"
+        f"{context_block}"
+    )
 
-    llm = get_llm(has_image=bool(image_data))
+    # 5. Route to text-only providers when no image is uploaded
+    if not has_image:
+        if provider.startswith("ollama"):
+            return _clean_content(call_ollama(prompt_with_instructions, history=history))
+        elif provider.startswith("groq"):
+            return _clean_content(call_groq(prompt_with_instructions, history=history))
+
+    # 6. Default Multimodal / LangChain Agent execution (Gemini / Tool-Enabled LLM)
+    llm = get_llm(has_image=has_image)
     llm_with_tools = llm.bind_tools(tools)
 
     messages = [SystemMessage(content=SYSTEM_INSTRUCTION)]
 
-    # 3. Append past history
+    # Append past conversation turns
     if history:
         for msg in history:
             role = msg.get("role")
@@ -301,20 +350,17 @@ def run_farmer_assistant(
             elif role == "assistant":
                 messages.append(AIMessage(content=content))
 
-    # 4. Append current turn
+    # Append current turn (with multimodal image structure if present)
     if has_image:
         user_content = [
-            {"type": "text", "text": instruction_prompt if final_query else f"[Language Requirement: {lang_note}]\nकृपया या पिकाचे/पानाचे निरीक्षण करून रोग व उपाय सांगा."},
-            {
-                "type": "image_url",
-                "image_url": {"url": image_data}
-            }
+            {"type": "text", "text": prompt_with_instructions},
+            {"type": "image_url", "image_url": {"url": image_data}}
         ]
         messages.append(HumanMessage(content=user_content))
     else:
-        messages.append(HumanMessage(content=instruction_prompt))
+        messages.append(HumanMessage(content=prompt_with_instructions))
 
-    # 5. Tool-calling loop
+    # Tool calling loop
     for _ in range(max_iterations):
         response = llm_with_tools.invoke(messages)
         messages.append(response)
@@ -333,14 +379,7 @@ def run_farmer_assistant(
             except Exception as e:
                 tool_output = f"Tool failure: {str(e)}"
 
-            messages.append(
-                ToolMessage(
-                    content=str(tool_output),
-                    tool_call_id=tool_id
-                )
-            )
+            messages.append(ToolMessage(content=str(tool_output), tool_call_id=tool_id))
 
-    response = llm.invoke(messages)
-    print(">>> [LLM RESPONSE GENERATED]:\n", response.content)
-    return response.content
-
+    final_response = llm.invoke(messages)
+    return _clean_content(final_response.content)
