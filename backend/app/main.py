@@ -4,14 +4,7 @@ import sys
 import traceback
 from pathlib import Path
 from typing import List, Optional
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 
-# Mount frontend static directory
-
-        
 # Set project root before importing internal backend modules
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -22,6 +15,8 @@ env_path = PROJECT_ROOT / ".env"
 load_dotenv(dotenv_path=env_path)
 
 from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -32,7 +27,6 @@ from backend.app.db.sessions import init_db, get_db
 from backend.app.api.auth_routes import router as auth_router
 from backend.app.services.auth import get_current_user_optional
 from backend.app.db.models import ChatMessage as DBChatMessage, ChatSession, User
-
 
 app = FastAPI(
     title="Kisan Mitra - Multilingual Crop Advisory Engine",
@@ -68,7 +62,8 @@ class ChatRequest(BaseModel):
     session_id: Optional[int] = None
     image_data: Optional[str] = None
     audio_data: Optional[str] = None
-    history: Optional[List[dict]] = None
+    history: Optional[list] = []
+    model_provider: Optional[str] = "auto"
 
 class ChatResponse(BaseModel):
     response: str
@@ -80,7 +75,7 @@ class ChatResponse(BaseModel):
 def health_check():
     return {"status": "healthy", "service": "Kisan Mitra Advisory"}
 
-# Mount frontend assets and serve index.html at root ("/")
+# Mount frontend static directory and serve index.html at root ("/")
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
@@ -172,16 +167,7 @@ async def chat_endpoint(
                     status="success"
                 )
 
-        # 2. Prepare query & language
-        lang_instruction_map = {
-            "mr": "Respond completely in Marathi (मराठी).",
-            "hi": "Respond completely in Hindi (हिन्दी).",
-            "en": "Respond completely in English."
-        }
-        lang_note = lang_instruction_map.get(lang, "Respond in the language chosen by user.")
-        full_query = f"[Language Requirement: {lang_note}]\nUser question: {user_query}"
-
-        # 3. Extract history
+        # 2. Extract history
         history_dicts = []
         if getattr(request, "history", None):
             history_dicts = [
@@ -189,12 +175,19 @@ async def chat_endpoint(
                 for m in request.history
             ]
 
+        # 3. Automatic Backend Model Resolution:
+        # If an image is present, route to multimodal vision (gemini).
+        # Otherwise, route text/speech to ultra-fast Groq Llama 3.3.
+        auto_provider = "gemini" if request.image_data else "groq"
+
         # 4. Run LLM Agent
         raw_answer = run_farmer_assistant(
-            query=full_query,
+            query=user_query,
+            language=lang,
             history=history_dicts,
             image_data=getattr(request, "image_data", None),
-            audio_data=getattr(request, "audio_data", None)
+            audio_data=getattr(request, "audio_data", None),
+            provider=auto_provider
         )
 
         answer = clean_llm_output(str(raw_answer or ""))
@@ -217,14 +210,6 @@ async def chat_endpoint(
         print("CRITICAL SERVER ERROR:\n", traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
-FRONTEND_DIR = PROJECT_ROOT / "frontend"
-if FRONTEND_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
-
-    @app.get("/", include_in_schema=False)
-    def serve_homepage():
-        return FileResponse(FRONTEND_DIR / "index.html")
-      
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("backend.app.main:app", host="127.0.0.1", port=8000, reload=True)

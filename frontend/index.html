@@ -30,16 +30,7 @@
 
   <!-- Header -->
   <header class="bg-emerald-800 text-white shadow-md flex-none z-20">
-    <!-- Inside header in frontend/index.html -->
-<select 
-  id="modelSelect" 
-  class="bg-emerald-900 border border-emerald-500/60 text-white text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer font-medium"
->
-  <option value="groq-llama3" selected>Groq (Llama 3.3 70B - Fast Cloud)</option>
-  <option value="gemini-flash">Google (Gemini 2.5 Flash - Multimodal)</option>
-  <option value="ollama-llama3">Ollama Local (Llama 3 / Mistral)</option>
-</select>
-
+    
     <div class="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <!-- Sidebar Toggle -->
@@ -680,12 +671,9 @@
       const headers = { "Content-Type": "application/json" };
       if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
 
-      const selectedModel = document.getElementById("modelSelect") ? document.getElementById("modelSelect").value : "groq-llama3";
-
       const payload = {
         query: promptToSend,
         language: currentLang,
-        model_provider: selectedModel, // <-- Send user's chosen engine
         session_id: currentSessionId ? parseInt(currentSessionId) : null,
         image_data: imageToSend,
         audio_data: null,

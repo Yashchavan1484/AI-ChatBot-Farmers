@@ -296,21 +296,25 @@ def run_farmer_assistant(
         else:
             return "Hello! I am Kisan Mitra, your crop advisor. How can I assist you with your crops, disease diagnosis, or spray schedules today?"
 
-    # 3. Retrieve handbook context via RAG for agricultural topics
     has_image = bool(image_data and isinstance(image_data, str) and image_data.startswith("data:image"))
+
+    # 3. Retrieve handbook context via RAG for pure text agricultural topics
+    # CLOUD SAFETY: Skip local ChromaDB on image uploads to avoid 512MB RAM OOM crash
     rag_context = ""
-    if needs_rag(final_query) or has_image:
-        print(">>> [RAG GATE]: Agricultural intent detected. Querying handbook vectorstore...")
+    if not has_image and needs_rag(final_query):
+        print(">>> [RAG GATE]: Agricultural text query. Querying handbook vectorstore...")
         try:
             if hasattr(search_local_handbooks, "invoke"):
-                rag_context = search_local_handbooks.invoke({"query": final_query or "crop leaf disease diagnosis"})
+                rag_context = search_local_handbooks.invoke({"query": final_query})
             elif hasattr(search_local_handbooks, "func"):
-                rag_context = search_local_handbooks.func(final_query or "crop leaf disease diagnosis")
+                rag_context = search_local_handbooks.func(final_query)
             else:
-                rag_context = search_local_handbooks(final_query or "crop leaf disease diagnosis")
+                rag_context = search_local_handbooks(final_query)
         except Exception as e:
             print(f">>> [RAG RETRIEVAL WARNING]: {e}. Continuing with general agronomy knowledge.")
             rag_context = ""
+    elif has_image:
+        print(">>> [VISION GATE]: Leaf image detected. Relying directly on Gemini Multimodal Pathology.")
 
     # 4. Prepare language and contextual prompt
     lang_map = {
@@ -323,7 +327,7 @@ def run_farmer_assistant(
     context_block = f"\n\n[Reference Data from Handbooks]:\n{rag_context}" if rag_context else ""
     prompt_with_instructions = (
         f"[Language Requirement: {lang_note}]\n"
-        f"Farmer Question: {final_query if final_query else 'कृपया या पानाचे निरीक्षण करून रोग व फवारणी औषधांची मात्रा सांगा.'}"
+        f"Farmer Question: {final_query if final_query else 'कृपया या पानाचे/फळाचे निरीक्षण करून रोग व फवारणी औषधांची मात्रा सांगा.'}"
         f"{context_block}"
     )
 
@@ -334,9 +338,8 @@ def run_farmer_assistant(
         elif provider.startswith("groq"):
             return _clean_content(call_groq(prompt_with_instructions, history=history))
 
-    # 6. Default Multimodal / LangChain Agent execution (Gemini / Tool-Enabled LLM)
+    # 6. Multimodal Vision Execution (Gemini)
     llm = get_llm(has_image=has_image)
-    llm_with_tools = llm.bind_tools(tools)
 
     messages = [SystemMessage(content=SYSTEM_INSTRUCTION)]
 
@@ -350,17 +353,21 @@ def run_farmer_assistant(
             elif role == "assistant":
                 messages.append(AIMessage(content=content))
 
-    # Append current turn (with multimodal image structure if present)
+    # Append current turn
     if has_image:
         user_content = [
             {"type": "text", "text": prompt_with_instructions},
             {"type": "image_url", "image_url": {"url": image_data}}
         ]
         messages.append(HumanMessage(content=user_content))
-    else:
-        messages.append(HumanMessage(content=prompt_with_instructions))
+        # Direct multimodal invocation without tool binding conflicts
+        response = llm.invoke(messages)
+        return _clean_content(response.content)
 
-    # Tool calling loop
+    # 7. Text-based Tool Calling loop for complex queries
+    llm_with_tools = llm.bind_tools(tools)
+    messages.append(HumanMessage(content=prompt_with_instructions))
+
     for _ in range(max_iterations):
         response = llm_with_tools.invoke(messages)
         messages.append(response)
