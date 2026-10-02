@@ -1,17 +1,29 @@
+# Web Framework & Server
 fastapi>=0.110.0
 uvicorn[standard]>=0.28.0
 python-dotenv>=1.0.1
 pydantic>=2.6.0
+requests>=2.31.0
+python-multipart>=0.0.9
+
+# Database & Authentication
+sqlalchemy>=2.0.0
+bcrypt>=4.0.0
+pyjwt>=2.8.0
+
+# LLM Providers & Voice Engine
+groq>=0.9.0
+langchain-google-genai>=2.0.0
+
+# LangChain Core & Agent Framework
 langchain>=0.2.0
 langchain-core>=0.2.0
 langchain-community>=0.2.0
-langchain-google-genai>=2.0.0
-sentence-transformers>=2.6.0
+langchain-tavily>=0.1.4
 
-pypdf>=4.2.0
+# Vector Store & Embeddings (RAG)
 chromadb>=0.5.0
 langchain-chroma>=0.1.1
 langchain-huggingface>=0.1.0
-
-langchain-tavily>=0.1.4
-
+sentence-transformers>=2.6.0
+pypdf>=4.2.0
