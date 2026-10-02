@@ -212,23 +212,42 @@ def transcribe_audio_base64(audio_base64: str) -> str:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
-def call_groq(prompt: str, history: list = None) -> str:
+def call_groq_direct(prompt: str, history: list = None) -> str:
+    """Direct Groq API execution with clean error isolation and history sanitization."""
     groq_api_key = os.getenv("GROQ_API_KEY")
     if not groq_api_key:
-        return "⚠️ GROQ_API_KEY is not set in environment."
-    client = Groq(api_key=groq_api_key)
-    messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
-    if history:
-        for turn in history:
-            messages.append({"role": turn.get("role", "user"), "content": turn.get("content", "")})
-    messages.append({"role": "user", "content": prompt})
+        print("[GROQ CONFIG ERROR]: GROQ_API_KEY is not set in environment variables.")
+        return "⚠️ Server configuration: GROQ_API_KEY is missing in Render environment variables. Please add it in Render Settings."
 
-    chat_completion = client.chat.completions.create(
-        messages=messages,
-        model="llama-3.3-70b-versatile",
-        temperature=0.3,
-    )
-    return chat_completion.choices[0].message.content
+    try:
+        client = Groq(api_key=groq_api_key.strip())
+        messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
+
+        # Safely sanitize history items
+        if history and isinstance(history, list):
+            for turn in history[-4:]:
+                if isinstance(turn, dict):
+                    raw_role = turn.get("role", "user")
+                    role = "assistant" if raw_role in ("assistant", "kisan_mitra", "bot") else "user"
+                    content = str(turn.get("content") or turn.get("message_text") or "").strip()
+                    if content:
+                        messages.append({"role": role, "content": content})
+                elif isinstance(turn, str) and turn.strip():
+                    messages.append({"role": "user", "content": turn.strip()})
+
+        messages.append({"role": "user", "content": str(prompt)})
+
+        chat_completion = client.chat.completions.create(
+            messages=messages,
+            model="llama-3.3-70b-versatile",
+            temperature=0.3,
+            max_tokens=1024
+        )
+        return chat_completion.choices[0].message.content
+
+    except Exception as e:
+        print(f"[GROQ RUNTIME ERROR]: {e}")
+        return f"कृषी सल्ला तयार करताना त्रुटी आली (Groq API Error: {str(e)}). कृपया थोड्या वेळाने पुन्हा प्रयत्न करा."
 
 def call_ollama(prompt: str, history: list = None, model_name: str = "llama3") -> str:
     ollama_url = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
