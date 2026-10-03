@@ -774,8 +774,7 @@
 
       const t = translations[currentLang] || translations.mr;
       const finalTitle = title || t.defaultSessionTitle;
-
-      if (authToken) {
+if (authToken) {
         try {
           const res = await fetch(`${API_BASE}/api/history/sessions`, {
             method: "POST",
@@ -790,13 +789,14 @@
             currentSessionId = data.id;
             localStorage.setItem("kisan_session_id", currentSessionId);
             loadChatSessions();
+          } else if (res.status === 401) {
+            handleLogout();
           }
         } catch (e) {
           console.error("Error creating session:", e);
         }
       }
     }
-
     // --- Sessions & History Management ---
     async function loadChatSessions() {
       if (!authToken || !sessionList) return;
@@ -877,8 +877,8 @@
 
         if (!res.ok) {
           if (res.status === 401) {
-            console.warn("Session expired or unauthorized. Starting clean session.");
-            startNewChatSession();
+            console.warn("Session expired or unauthorized. Logging out.");
+            handleLogout();
           }
           return;
         }
