@@ -217,13 +217,12 @@ def call_groq_direct(prompt: str, history: list = None) -> str:
     groq_api_key = os.getenv("GROQ_API_KEY")
     if not groq_api_key:
         print("[GROQ CONFIG ERROR]: GROQ_API_KEY is not set in environment variables.")
-        return "⚠️ Server configuration: GROQ_API_KEY is missing in Render environment variables. Please add it in Render Settings."
+        return "⚠️ Server configuration: GROQ_API_KEY is missing."
 
     try:
         client = Groq(api_key=groq_api_key.strip())
         messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
 
-        # Safely sanitize history items
         if history and isinstance(history, list):
             for turn in history[-4:]:
                 if isinstance(turn, dict):
@@ -237,11 +236,12 @@ def call_groq_direct(prompt: str, history: list = None) -> str:
 
         messages.append({"role": "user", "content": str(prompt)})
 
+        # Uses 20b model with 800 tokens to stay well under rate limits
         chat_completion = client.chat.completions.create(
             messages=messages,
-            model="openai/gpt-oss-120b",
+            model="openai/gpt-oss-20b",
             temperature=0.3,
-            max_tokens=1024
+            max_tokens=800
         )
         return chat_completion.choices[0].message.content
 
@@ -319,26 +319,33 @@ def run_farmer_assistant(
 
     # 3. Retrieve handbook context via RAG for pure text agricultural topics
     # CLOUD SAFETY: Skip local ChromaDB on image uploads to avoid 512MB RAM OOM crash
+   # 3. Retrieve 80% Local Handbook Context + 20% Verified Web Context
     rag_context = ""
-    # Only attempt local vectorstore if running locally or if explicit env flag is set
-    # On Render cloud (RENDER=true is automatically set by Render), bypass heavy PyTorch embeddings
-    is_render = os.getenv("RENDER", "false").lower() == "true"
+    web_context = ""
     
-    if not is_render and not has_image and needs_rag(final_query):
-        print(">>> [LOCAL DEV]: Querying ChromaDB handbook vectorstore...")
+    if not has_image and needs_rag(final_query):
         try:
-            if hasattr(search_local_handbooks, "invoke"):
-                rag_context = search_local_handbooks.invoke({"query": final_query})
-            elif hasattr(search_local_handbooks, "func"):
+            print(">>> [DOCUMENTS RAG]: Querying ChromaDB handbook vectorstore...")
+            if hasattr(search_local_handbooks, "func"):
                 rag_context = search_local_handbooks.func(final_query)
+            elif hasattr(search_local_handbooks, "invoke"):
+                rag_context = search_local_handbooks.invoke({"query": final_query})
             else:
                 rag_context = search_local_handbooks(final_query)
         except Exception as e:
-            print(f">>> [RAG RETRIEVAL WARNING]: {e}. Falling back to foundation model.")
+            print(f">>> [RAG RETRIEVAL WARNING]: {e}")
             rag_context = ""
-    else:
-        if is_render:
-            print(">>> [CLOUD PRODUCTION]: Relying directly on Groq Llama 3.3 agronomy intelligence.")
+
+        # 20% Web Search: Fetch extension sites if documents yield sparse results
+        if not rag_context or rag_context == "NO_LOCAL_DATA_FOUND":
+            try:
+                print(">>> [WEB FALLBACK]: Searching verified agriculture portals...")
+                tavily_key = os.getenv("TAVILY_API_KEY")
+                if tavily_key:
+                    web_context = web_search_tool.invoke({"query": f"{final_query} ICAR package of practices"})
+            except Exception as e:
+                print(f">>> [WEB SEARCH WARNING]: {e}")
+
     # 4. Prepare language and contextual prompt
     lang_map = {
         "mr": "Respond completely in Marathi (मराठी).",
@@ -347,11 +354,19 @@ def run_farmer_assistant(
     }
     lang_note = lang_map.get(language, "Respond in the language chosen by user.")
 
-    context_block = f"\n\n[Reference Data from Handbooks]:\n{rag_context}" if rag_context else ""
+    # Combine 80% PDF Handbooks with 20% Web Advisory
+    context_sections = []
+    if rag_context and rag_context != "NO_LOCAL_DATA_FOUND":
+        context_sections.append(f"=== 80% GROUNDED CONTEXT FROM YOUR LOCAL PDF HANDBOOKS ===\n{rag_context}")
+    if web_context:
+        context_sections.append(f"=== 20% CONTEXT FROM VERIFIED AGRI WEBSITES ===\n{web_context}")
+
+    full_context_block = ("\n\n" + "\n\n".join(context_sections)) if context_sections else ""
+
     prompt_with_instructions = (
         f"[Language Requirement: {lang_note}]\n"
         f"Farmer Question: {final_query if final_query else 'कृपया या पानाचे/फळाचे निरीक्षण करून रोग व फवारणी औषधांची मात्रा सांगा.'}"
-        f"{context_block}"
+        f"{full_context_block}"
     )
 
     # 5. Route to text-only providers when no image is uploaded
