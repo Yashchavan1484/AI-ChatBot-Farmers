@@ -625,6 +625,57 @@
       }
     }
 
+    // --- Sessions & History Management ---
+    // --- Sessions & History Management ---
+    async function loadChatSessions() {
+      if (!authToken || !sessionList) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/history/sessions`, {
+          headers: { "Authorization": `Bearer ${authToken}` }
+        });
+        
+        // Auto-handle expired container tokens
+        if (res.status === 401) {
+          console.warn("Session token expired or invalidated by server. Resetting auth state.");
+          handleLogout();
+          return;
+        }
+
+        if (!res.ok) return;
+
+        const sessions = await res.json();
+        sessionList.innerHTML = "";
+
+        sessions.forEach(s => {
+          const li = document.createElement("li");
+          const isActive = s.id == currentSessionId;
+          li.className = `group p-2.5 rounded-lg text-xs cursor-pointer flex items-center justify-between transition ${
+            isActive ? "bg-emerald-100 text-emerald-900 font-semibold" : "hover:bg-slate-100 text-slate-700"
+          }`;
+          li.innerHTML = `
+            <div class="truncate flex-1 pr-2" onclick="switchSession(${s.id})">
+              <i class="fa-regular fa-message mr-1.5 opacity-60"></i>
+              <span>${escapeHtml(s.title || "नवीन संवाद")}</span>
+            </div>
+            <div class="flex items-center gap-1.5 flex-none">
+              <span class="text-[10px] text-slate-400">${(s.created_at || "").split(" ")[0]}</span>
+              <button 
+                type="button" 
+                onclick="event.stopPropagation(); deleteSession(${s.id})" 
+                title="चर्चा हटवा (Delete)"
+                class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 p-1 transition"
+              >
+                <i class="fa-solid fa-trash-can text-xs"></i>
+              </button>
+            </div>
+          `;
+          sessionList.appendChild(li);
+        });
+      } catch (err) {
+        console.error("Failed to load sessions:", err);
+      }
+    }
     // --- Core Chat Submission ---
     async function handleChat(queryText = null) {
       const text = (queryText !== null ? queryText : userInput.value).trim();
