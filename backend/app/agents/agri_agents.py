@@ -18,15 +18,15 @@ from langchain_tavily import TavilySearch
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
 from groq import Groq
 
-SYSTEM_INSTRUCTION = """You are 'Kisan Mitra' (किसान मित्र), an expert agronomist and friendly conversational crop advisor.
+SYSTEM_INSTRUCTION = """You are 'Kisan Mitra' (किसान मित्र), an expert agronomist and crop advisor.
 You assist farmers, agricultural officers, and growers with practical, field-tested guidance.
 
 STRICT CONVERSATIONAL & OUTPUT GUARDRAILS:
 1. Speak DIRECTLY to the farmer in natural, supportive dialogue.
-2. NEVER output internal reasoning, thought process, meta-explanations, or raw JSON tool calls.
+2. NEVER output internal reasoning, thought processes, meta-explanations, or raw JSON tool calls.
 3. NEVER say things like "Since the user asked...", "I will call function...", or "Here is the JSON object:".
 4. GREETINGS & SHORT INPUTS:
-   - If the user says "hello", "hi", "namaste", "नमस्कार", or gives a general greeting, reply warmly as Kisan Mitra in their language and politely ask which crop, disease, or farming issue they need assistance with today. Do not trigger technical advisories on bare greetings.
+   - If the user says "hello", "hi", "namaste", "नमस्कार", or gives a general greeting, reply warmly as Kisan Mitra in their selected language and politely ask which crop, disease, or farming issue they need assistance with today. Do not trigger technical advisories on bare greetings.
 
 VOICE & AUDIO (SPEECH-FRIENDLY) OPTIMIZATION:
 1. Since responses may be spoken aloud via Text-to-Speech (TTS) to farmers:
@@ -42,7 +42,7 @@ When an image of a leaf, fruit, stem, pest, or crop is provided:
 1. STRICT PATHOLOGY VS. PHYSIOLOGICAL DISORDER DIFFERENTIATION:
    - TROPICAL & ORCHARD FRUITS (Papaya, Mango, Guava, Banana, Citrus, Pomegranate):
      * Concentric target-board rings, sunken circular necrotic lesions, water-soaked dark spots with a vivid yellow halo -> Diagnose ANTHRACNOSE / FRUIT ROT (Colletotrichum gloeosporioides or Alternaria), NEVER Blossom End Rot.
-     * Blossom End Rot (BER) is virtually exclusive to solanaceous vegetables (tomatoes, bell peppers, eggplants). NEVER diagnose Blossom End Rot on Papaya or tree fruits.
+     * Blossom End Rot (BER) is strictly limited to solanaceous vegetables (tomatoes, bell peppers, eggplants). NEVER diagnose Blossom End Rot on Papaya or tree fruits.
      * For Papaya Anthracnose: Immediately prescribe proven systemic fungicides (e.g., Azoxystrobin + Difenoconazole or Tebuconazole + Trifloxystrobin) or contact copper sprays, sanitation (removing diseased fruit), and canopy aeration.
    - SOLANACEOUS VEGETABLES (Tomato, Chilli, Capsicum, Brinjal):
      * If damage is strictly at the apical BOTTOM tip (blossom scar opposite the pedicel stem) -> Diagnose BLOSSOM END ROT (calcium imbalance, moisture oscillation).
@@ -60,46 +60,28 @@ When an image of a leaf, fruit, stem, pest, or crop is provided:
    - Recommended Spray / Dosage (शिफारस केलेली फवारणी व प्रमाण)
    - Cultural & Preventive Field Measures (प्रतिबंधात्मक उपाय)
 
-CORE OBJECTIVES:
-1. Converse naturally in an easy-to-understand, friendly tone while maintaining scientific accuracy.
-2. Respond in the EXACT same language or dialect as the user's message (e.g., Marathi, Hindi, English, Hinglish).
-3. DYNAMIC FORMATTING:
-   - For variety/general inquiries: Concise, bulleted explanations highlighting yield, maturity duration, and regional adaptability.
-   - For pest/disease/spray queries: Provide clear actionable steps including Symptoms, Dosage per Liter and per 15-liter pump, Application timing, and Pre-Harvest Interval (PHI).
-   - Use clean bolding and bullet points for high readability on mobile screens.
-4. STRICT SOURCE PRIVACY:
-   - NEVER mention file names, PDF paths, database IDs, or internal markers (e.g., do NOT say "According to DiseaseofFieldHorticultureCrops.pdf" or "[Source 1]").
-   - Present information as direct agronomy expertise or cite official bodies generally (e.g., "कृषी विद्यापीठाच्या शिफारशीनुसार" or "As per ICAR package of practices").
-
-WEATHER & GENERAL CROP CONSULTATION FALLBACK:
-- If the user asks about climate, temperature, soil pH, sowing seasons, or crops not detailed in local manuals:
-    * Provide standard ICAR agronomy recommendations directly.
-    * Include Day/Night Temperature ranges, Humidity, Rainfall/Sunlight needs, Soil drainage/pH requirements, and Common Risks.
-
-DOSAGE & CHEMICAL ACCURACY GUARDRAILS:
+ANTI-HALLUCINATION & DOSAGE INTEGRITY:
 1. BRAND & TECHNICAL NAME PAIRING:
    - Always mention BOTH the popular commercial brand name and its active technical chemical ingredient (e.g., "Nativo containing Tebuconazole 50% plus Trifloxystrobin 25% WG" or "Amistar Top containing Azoxystrobin plus Difenoconazole").
 2. EXACT DUAL PUMP MEASURES:
    - Always state dilution rates in two explicit measures:
      * Per 1 Liter of water (e.g., "1 milliliter per liter of water" or "१ मिली प्रति लिटर पाणी").
      * Per standard 15-Liter knapsack pump tank (e.g., "15 milliliters per 15-liter pump" or "१५ मिली प्रति १५ लिटर पंप").
-3. SPRAY TIMING & MANDATORY INTERVAL:
+3. DO NOT INVENT DOSAGES:
+   - Only recommend chemicals, active ingredients, and brand pairings that are verified in Indian Agriculture / ICAR / CIBRC standards.
+   - If an exact field dosage cannot be confirmed, advise the farmer: "स्थानिक कृषी सेवा केंद्र किंवा कृषी तज्ज्ञांच्या सल्ल्याने अधिकृत लेबल क्लेम तपासूनच प्रमाण वापरावे."
+4. SPRAY TIMING & MANDATORY INTERVAL:
    - State the optimal time of day: Early morning (before 9:30 AM) or late afternoon (after 4:30 PM).
    - Specify a mandatory waiting gap between applications (e.g., "Repeat after 10 to 14 days only if active symptoms persist").
    - NEVER advise daily spraying.
-4. EVALUATION MILESTONE (RECOVERY CHECK):
+5. EVALUATION MILESTONE (RECOVERY CHECK):
    - Always give the farmer clear indicators to check after 4 to 5 days:
      * Example: "Check the plants after 4 to 5 days: active fungal lesions should dry up and turn pale grey or brown with no new yellow halos spreading, and new top leaves or small fruits should emerge clean."
-5. FERTILIZER & SEED TREATMENT ACCURACY:
+6. FERTILIZER & SEED TREATMENT ACCURACY:
    - NEVER hallucinate micro-dosages for field fertilizers.
    - For seed treatment (बीज प्रक्रिया): Recommend standard fungicides like Carbendazim (२ ग्रॅम प्रति किलो बियाणे), Mancozeb (२.५ ग्रॅम प्रति किलो बियाणे), or bio-agents like Trichoderma (५ ग्रॅम प्रति किलो बियाणे).
    - NEVER confuse insecticides with fungicides/bactericides.
    - If exact fertilizer dosages per hectare are not explicitly retrieved, advise: "खतांचे प्रमाण माती परीक्षणानुसार व स्थानिक कृषी विद्यापीठाच्या शिफारशीनुसार द्यावे."
-
-CONTEXT GROUNDING:
-- Answer the user's question using the retrieved agronomy context provided in the conversation.
--Respond in the EXACT same language or dialect as the user's message (e.g., Marathi, Hindi, English, Hinglish).
-- If the retrieved context contains relevant crop, pest, or chemical recommendations, prioritize those details accurately.
 """
 
 WHITELISTED_DOMAINS = [
@@ -121,7 +103,8 @@ tool_map = {tool.name: tool for tool in tools}
 
 AGRI_KEYWORDS = {
     "रोग", "औषध", "फवारणी", "खत", "कीड", "बियाणे", "पाणी", "लागवड",
-    "disease", "spray", "blight", "rot", "dose", "fertilizer", "pest", "seed"
+    "disease", "spray", "blight", "rot", "dose", "fertilizer", "pest", "seed",
+    "anthracnose", "spot", "curling", "fungicide", "pesticide"
 }
 
 GREETINGS = {
@@ -133,14 +116,14 @@ def is_simple_greeting(text: str) -> bool:
     if not text:
         return False
     clean = text.strip().lower()
-    return clean in GREETINGS or clean.startswith(("hi ", "hello ", "hey "))
+    return clean in GREETINGS or clean.startswith(("hi ", "hello ", "hey ", "namaskar ", "namaste "))
 
 def needs_rag(query: str) -> bool:
     """Bypasses ChromaDB vector search for casual greetings or non-agri banter."""
     clean_query = query.lower()
     if any(keyword in clean_query for keyword in AGRI_KEYWORDS):
         return True
-    return len(query.strip().split()) > 4
+    return len(query.strip().split()) > 3
 
 def _clean_content(content) -> str:
     """Converts LLM response blocks to a clean text string."""
@@ -165,29 +148,31 @@ def _clean_content(content) -> str:
     )
     return cleaned.strip()
 
-def transcribe_audio_base64(audio_base64: str) -> str:
-    """Transcribes incoming farmer voice audio using Groq Whisper."""
+def transcribe_audio_base64(audio_base64: str, language: str = "mr") -> str:
+    """Transcribes incoming farmer voice audio using Groq Whisper with language awareness."""
     groq_api_key = os.getenv("GROQ_API_KEY")
     if not groq_api_key:
         print("[AUDIO WARNING] GROQ_API_KEY is not set. Skipping audio transcription.")
         return ""
     
-    client = Groq(api_key=groq_api_key)
+    client = Groq(api_key=groq_api_key.strip())
 
     ext = "webm"
     if "," in audio_base64:
         header, audio_base64 = audio_base64.split(",", 1)
-        if "wav" in header:
+        header_lower = header.lower()
+        if "wav" in header_lower:
             ext = "wav"
-        elif "mp4" in header or "m4a" in header:
+        elif "mp4" in header_lower or "m4a" in header_lower:
             ext = "m4a"
-        elif "ogg" in header:
+        elif "ogg" in header_lower:
             ext = "ogg"
         else:
             ext = "webm"
 
     try:
-        audio_bytes = base64.b64decode(audio_base64)
+        # Strip potential newlines/whitespace before decoding
+        audio_bytes = base64.b64decode(audio_base64.strip())
     except Exception as e:
         print(f"[AUDIO ERROR] Base64 decode failed: {e}")
         return ""
@@ -201,10 +186,12 @@ def transcribe_audio_base64(audio_base64: str) -> str:
         tmp_path = tmp.name
 
     try:
+        whisper_lang = "mr" if language == "mr" else ("hi" if language == "hi" else "en")
         with open(tmp_path, "rb") as file:
             transcription = client.audio.transcriptions.create(
                 file=(f"recording.{ext}", file.read()),
                 model="whisper-large-v3-turbo",
+                language=whisper_lang,
                 response_format="verbose_json"
             )
         
@@ -244,11 +231,10 @@ def call_groq_direct(prompt: str, history: list = None) -> str:
 
         messages.append({"role": "user", "content": str(prompt)})
 
-        # Uses 20b model with 800 tokens to stay well under rate limits
         chat_completion = client.chat.completions.create(
             messages=messages,
             model="openai/gpt-oss-20b",
-            temperature=0.3,
+            temperature=0.0,
             max_tokens=800
         )
         return chat_completion.choices[0].message.content
@@ -299,7 +285,7 @@ def run_farmer_assistant(
     transcribed_text = ""
     if audio_data and isinstance(audio_data, str) and len(audio_data.strip()) > 0:
         print("\n>>> [STEP 1] Transcribing incoming audio with Groq Whisper...")
-        transcribed_text = transcribe_audio_base64(audio_data)
+        transcribed_text = transcribe_audio_base64(audio_data, language=language)
         print(f">>> [STEP 2] Transcribed Text: '{transcribed_text}'\n")
 
     # Merge query text and transcribed audio
@@ -325,13 +311,11 @@ def run_farmer_assistant(
 
     has_image = bool(image_data and isinstance(image_data, str) and image_data.startswith("data:image"))
 
-    # 3. Retrieve handbook context via RAG for pure text agricultural topics
-    # CLOUD SAFETY: Skip local ChromaDB on image uploads to avoid 512MB RAM OOM crash
-   # 3. Retrieve 80% Local Handbook Context + 20% Verified Web Context
+    # 3. Retrieve handbook context via RAG
     rag_context = ""
     web_context = ""
     
-    if not has_image and needs_rag(final_query):
+    if needs_rag(final_query):
         try:
             print(">>> [DOCUMENTS RAG]: Querying ChromaDB handbook vectorstore...")
             if hasattr(search_local_handbooks, "func"):
@@ -344,7 +328,6 @@ def run_farmer_assistant(
             print(f">>> [RAG RETRIEVAL WARNING]: {e}")
             rag_context = ""
 
-        # 20% Web Search: Fetch extension sites if documents yield sparse results
         if not rag_context or rag_context == "NO_LOCAL_DATA_FOUND":
             try:
                 print(">>> [WEB FALLBACK]: Searching verified agriculture portals...")
@@ -354,7 +337,7 @@ def run_farmer_assistant(
             except Exception as e:
                 print(f">>> [WEB SEARCH WARNING]: {e}")
 
-    # 4. Prepare language and contextual prompt
+    # 4. Prepare single consolidated prompt with strict language instructions
     lang_map = {
         "mr": "Respond completely in Marathi (मराठी).",
         "hi": "Respond completely in Hindi (हिन्दी).",
@@ -362,21 +345,13 @@ def run_farmer_assistant(
     }
     lang_note = lang_map.get(language, "Respond completely in English.")
 
-    # Language-aware fallback query when only an image is uploaded without text
     image_default_queries = {
-        "mr": "कृपया या पानाचे किंवा फळाचे निरीक्षण करून रोग आणि फवारणी औषधांची अचूक मात्रा सांगा.",
-        "hi": "कृपया इस पत्ते या फल का निरीक्षण करके रोग और कीटनाशक छिड़काव की सही मात्रा बताएं।",
-        "en": "Please examine this leaf or fruit image, identify the disease or issue, and provide recommended sprays with exact dosages."
+        "mr": "कृपया या छायाचित्रातील पानाचे किंवा फळाचे निरीक्षण करून रोग आणि फवारणी औषधांची अचूक मात्रा सांगा.",
+        "hi": "कृपया इस फोटो में पत्ते या फल का निरीक्षण करके रोग और कीटनाशक छिड़काव की सही मात्रा बताएं।",
+        "en": "Please examine this crop image, identify the disease or issue, and provide recommended sprays with exact dosages."
     }
-    default_prompt = image_default_queries.get(language, image_default_queries["en"])
+    effective_query = final_query if final_query else image_default_queries.get(language, image_default_queries["en"])
 
-    prompt_with_instructions = (
-        f"[STRICT INSTRUCTION: Output your entire response ONLY in {language.upper()} ({lang_note})]\n"
-        f"Farmer Question: {final_query if final_query else default_prompt}"
-        f"{full_context_block}"
-    )
-
-    # Combine 80% PDF Handbooks with 20% Web Advisory
     context_sections = []
     if rag_context and rag_context != "NO_LOCAL_DATA_FOUND":
         context_sections.append(f"=== 80% GROUNDED CONTEXT FROM YOUR LOCAL PDF HANDBOOKS ===\n{rag_context}")
@@ -386,8 +361,9 @@ def run_farmer_assistant(
     full_context_block = ("\n\n" + "\n\n".join(context_sections)) if context_sections else ""
 
     prompt_with_instructions = (
-        f"[Language Requirement: {lang_note}]\n"
-        f"Farmer Question: {final_query if final_query else 'कृपया या पानाचे/फळाचे निरीक्षण करून रोग व फवारणी औषधांची मात्रा सांगा.'}"
+        f"[STRICT LANGUAGE DIRECTIVE: Output your entire response ONLY in {language.upper()} ({lang_note}). "
+        f"Do NOT use any other language.]\n"
+        f"Farmer Query: {effective_query}"
         f"{full_context_block}"
     )
 
@@ -398,34 +374,16 @@ def run_farmer_assistant(
         elif provider.startswith("groq"):
             return _clean_content(call_groq_direct(prompt_with_instructions, history=history))
 
-    # 6. Multimodal Vision Execution (Gemini)
-    llm = get_llm(has_image=has_image)
-
-    messages = [SystemMessage(content=SYSTEM_INSTRUCTION)]
-
-    # Append past conversation turns
-    if history:
-        for msg in history:
-            role = msg.get("role")
-            content = msg.get("content", "")
-            if role == "user":
-                messages.append(HumanMessage(content=content))
-            elif role == "assistant":
-                messages.append(AIMessage(content=content))
-
-    # Append current turn
+    # 6. Multimodal Vision Execution (Gemini 2.5 Flash)
     if has_image:
         try:
             llm = get_llm(has_image=True)
             
-            # Extract plain text instruction combined with prompt to avoid schema issues
             vision_prompt = (
                 f"{SYSTEM_INSTRUCTION}\n\n"
                 f"{prompt_with_instructions}"
             )
             
-            # Format accepted by langchain-google-genai
-            # Handles both direct string and nested dict formats safely
             user_content = [
                 {"type": "text", "text": vision_prompt},
                 {"type": "image_url", "image_url": image_data}
@@ -436,7 +394,6 @@ def run_farmer_assistant(
             
         except Exception as e:
             print(f"[GEMINI VISION DIRECT ERROR]: {e}")
-            # Fallback format if the SDK expects nested dict
             try:
                 user_content = [
                     {"type": "text", "text": vision_prompt},
@@ -446,13 +403,27 @@ def run_farmer_assistant(
                 return _clean_content(response.content)
             except Exception as e2:
                 print(f"[GEMINI VISION FALLBACK ERROR]: {e2}")
-                return (
-                    "छायाचित्राचे विश्लेषण करताना तांत्रिक अडचण आली (Vision API Error). "
-                    "कृपया छायाचित्र पुन्हा अपलोड करा किंवा पिकाचे नाव व लक्षणे टाईप करून विचारा."
-                )
+                fallback_err = {
+                    "mr": "छायाचित्राचे विश्लेषण करताना तांत्रिक अडचण आली. कृपया छायाचित्र पुन्हा अपलोड करा किंवा पिकाचे नाव टाईप करा.",
+                    "hi": "फोटो का विश्लेषण करते समय तकनीकी समस्या आई। कृपया फोटो दोबारा अपलोड करें या समस्या टाइप करें।",
+                    "en": "There was a technical issue analyzing the image. Please re-upload the photo or describe the crop symptoms."
+                }
+                return fallback_err.get(language, fallback_err["en"])
 
-    # 7. Text-based Tool Calling loop for complex queries
+    # 7. Text-based Tool Calling loop for complex text queries
+    llm = get_llm(has_image=False)
     llm_with_tools = llm.bind_tools(tools)
+    messages = [SystemMessage(content=SYSTEM_INSTRUCTION)]
+    
+    if history:
+        for msg in history[-4:]:
+            role = msg.get("role")
+            content = msg.get("content", "")
+            if role == "user":
+                messages.append(HumanMessage(content=content))
+            elif role == "assistant":
+                messages.append(AIMessage(content=content))
+                
     messages.append(HumanMessage(content=prompt_with_instructions))
 
     for _ in range(max_iterations):
