@@ -1015,7 +1015,7 @@ if (authToken) {
       window.speechSynthesis.speak(utterance);
     }
 
-    function toggleVoiceRecognition(event) {
+    async function toggleVoiceRecognition(event) {
       if (event) {
         event.preventDefault();
         event.stopPropagation();
@@ -1023,11 +1023,10 @@ if (authToken) {
 
       const t = translations[currentLang] || translations.mr;
 
+      // If already recording, stop it and process audio
       if (isRecording) {
         if (mediaRecorder && mediaRecorder.state === "recording") {
           mediaRecorder.stop();
-        } else if (recognition) {
-          recognition.stop();
         }
         isRecording = false;
         micBtn.classList.remove("mic-recording");
@@ -1035,72 +1034,139 @@ if (authToken) {
         return;
       }
 
-      if (window.SpeechRecognition || window.webkitSpeechRecognition) {
-        try {
-          const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-          recognition = new SpeechRec();
-          recognition.continuous = false;
-          recognition.interimResults = false;
-          recognition.lang = langCodes[currentLang] || "mr-IN";
-
-          recognition.onstart = () => {
-            isRecording = true;
-            micBtn.classList.add("mic-recording");
-            userInput.placeholder = t.recordingText;
-          };
-
-          recognition.onresult = (ev) => {
-            const transcript = ev.results[0][0].transcript;
-            userInput.value = transcript;
-            isRecording = false;
-            micBtn.classList.remove("mic-recording");
-            userInput.placeholder = t.inputPlaceholder;
-            handleChat(transcript);
-          };
-
-          recognition.onerror = recognition.onend = () => {
-            isRecording = false;
-            micBtn.classList.remove("mic-recording");
-            userInput.placeholder = t.inputPlaceholder;
-          };
-
-          recognition.start();
-          return;
-        } catch (e) {
-          console.warn("Speech API failed, trying media recorder fallback");
-        }
+      // Start recording directly via MediaStream
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert(currentLang === "en" ? "Microphone not supported on this browser." : "या ब्राउझरवर मायक्रोफोन उपलब्ध नाही.");
+        return;
       }
 
-      // Stream fallback
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-          mediaRecorder = new MediaRecorder(stream);
-          audioChunks = [];
-          mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
-          mediaRecorder.onstop = () => {
-            isRecording = false;
-            micBtn.classList.remove("mic-recording");
-            userInput.placeholder = t.inputPlaceholder;
-            stream.getTracks().forEach(tr => tr.stop());
-            const blob = new Blob(audioChunks, { type: 'audio/webm' });
-            const reader = new FileReader();
-            reader.readAsDataURL(blob);
-            reader.onloadend = () => {
-              appendUserMessage("🎤 [Voice Query]", currentBase64Image);
-              sendAudioPayload(reader.result);
-            };
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            audioChunks.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          stream.getTracks().forEach(track => track.stop());
+          const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+          
+          if (audioBlob.size < 1000) {
+            console.warn("Audio recording was too short.");
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = () => {
+            const base64Audio = reader.result;
+            appendUserMessage("🎤 [आवाज संदेश (Voice Query)]", currentBase64Image);
+            sendAudioPayload(base64Audio);
           };
-          mediaRecorder.start();
-          isRecording = true;
-          micBtn.classList.add("mic-recording");
-          userInput.placeholder = t.recordingText;
-        }).catch(err => {
-          alert(currentLang === "en" ? "Microphone permission was denied." : "मायक्रोफोन परवानगी नाकारली गेली आहे.");
-        });
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+        micBtn.classList.add("mic-recording");
+        userInput.placeholder = t.recordingText;
+
+      } catch (err) {
+        console.error("Microphone access error:", err);
+        alert(currentLang === "en" ? "Microphone permission was denied. Please allow microphone access in site settings." : "मायक्रोफोन परवानगी नाकारली गेली आहे. कृपया ब्राऊझर सेटिंग्जमध्ये परवानगी द्या.");
       }
     }
+    
+    // function toggleVoiceRecognition(event) {
+    //   if (event) {
+    //     event.preventDefault();
+    //     event.stopPropagation();
+    //   }
+
+    //   const t = translations[currentLang] || translations.mr;
+
+    //   if (isRecording) {
+    //     if (mediaRecorder && mediaRecorder.state === "recording") {
+    //       mediaRecorder.stop();
+    //     } else if (recognition) {
+    //       recognition.stop();
+    //     }
+    //     isRecording = false;
+    //     micBtn.classList.remove("mic-recording");
+    //     userInput.placeholder = t.inputPlaceholder;
+    //     return;
+    //   }
+
+    //   if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+    //     try {
+    //       const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    //       recognition = new SpeechRec();
+    //       recognition.continuous = false;
+    //       recognition.interimResults = false;
+    //       recognition.lang = langCodes[currentLang] || "mr-IN";
+
+    //       recognition.onstart = () => {
+    //         isRecording = true;
+    //         micBtn.classList.add("mic-recording");
+    //         userInput.placeholder = t.recordingText;
+    //       };
+
+    //       recognition.onresult = (ev) => {
+    //         const transcript = ev.results[0][0].transcript;
+    //         userInput.value = transcript;
+    //         isRecording = false;
+    //         micBtn.classList.remove("mic-recording");
+    //         userInput.placeholder = t.inputPlaceholder;
+    //         handleChat(transcript);
+    //       };
+
+    //       recognition.onerror = recognition.onend = () => {
+    //         isRecording = false;
+    //         micBtn.classList.remove("mic-recording");
+    //         userInput.placeholder = t.inputPlaceholder;
+    //       };
+
+    //       recognition.start();
+    //       return;
+    //     } catch (e) {
+    //       console.warn("Speech API failed, trying media recorder fallback");
+    //     }
+    //   }
+
+    //   // Stream fallback
+    //   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    //     navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+    //       mediaRecorder = new MediaRecorder(stream);
+    //       audioChunks = [];
+    //       mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+    //       mediaRecorder.onstop = () => {
+    //         isRecording = false;
+    //         micBtn.classList.remove("mic-recording");
+    //         userInput.placeholder = t.inputPlaceholder;
+    //         stream.getTracks().forEach(tr => tr.stop());
+    //         const blob = new Blob(audioChunks, { type: 'audio/webm' });
+    //         const reader = new FileReader();
+    //         reader.readAsDataURL(blob);
+    //         reader.onloadend = () => {
+    //           appendUserMessage("🎤 [Voice Query]", currentBase64Image);
+    //           sendAudioPayload(reader.result);
+    //         };
+    //       };
+    //       mediaRecorder.start();
+    //       isRecording = true;
+    //       micBtn.classList.add("mic-recording");
+    //       userInput.placeholder = t.recordingText;
+    //     }).catch(err => {
+    //       alert(currentLang === "en" ? "Microphone permission was denied." : "मायक्रोफोन परवानगी नाकारली गेली आहे.");
+    //     });
+    //   }
+    // }
 
     async function sendAudioPayload(base64Audio) {
+      
       if (typingIndicator) typingIndicator.classList.remove("hidden");
       if (sendBtn) sendBtn.disabled = true;
       scrollToBottom();

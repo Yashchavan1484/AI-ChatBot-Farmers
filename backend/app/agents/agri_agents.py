@@ -177,6 +177,8 @@ def transcribe_audio_base64(audio_base64: str) -> str:
             ext = "m4a"
         elif "ogg" in header:
             ext = "ogg"
+        else:
+            ext = "webm"
 
     try:
         audio_bytes = base64.b64decode(audio_base64)
@@ -393,14 +395,41 @@ def run_farmer_assistant(
 
     # Append current turn
     if has_image:
-        user_content = [
-            {"type": "text", "text": prompt_with_instructions},
-            {"type": "image_url", "image_url": {"url": image_data}}
-        ]
-        messages.append(HumanMessage(content=user_content))
-        # Direct multimodal invocation without tool binding conflicts
-        response = llm.invoke(messages)
-        return _clean_content(response.content)
+        try:
+            llm = get_llm(has_image=True)
+            
+            # Extract plain text instruction combined with prompt to avoid schema issues
+            vision_prompt = (
+                f"{SYSTEM_INSTRUCTION}\n\n"
+                f"{prompt_with_instructions}"
+            )
+            
+            # Format accepted by langchain-google-genai
+            # Handles both direct string and nested dict formats safely
+            user_content = [
+                {"type": "text", "text": vision_prompt},
+                {"type": "image_url", "image_url": image_data}
+            ]
+            
+            response = llm.invoke([HumanMessage(content=user_content)])
+            return _clean_content(response.content)
+            
+        except Exception as e:
+            print(f"[GEMINI VISION DIRECT ERROR]: {e}")
+            # Fallback format if the SDK expects nested dict
+            try:
+                user_content = [
+                    {"type": "text", "text": vision_prompt},
+                    {"type": "image_url", "image_url": {"url": image_data}}
+                ]
+                response = llm.invoke([HumanMessage(content=user_content)])
+                return _clean_content(response.content)
+            except Exception as e2:
+                print(f"[GEMINI VISION FALLBACK ERROR]: {e2}")
+                return (
+                    "छायाचित्राचे विश्लेषण करताना तांत्रिक अडचण आली (Vision API Error). "
+                    "कृपया छायाचित्र पुन्हा अपलोड करा किंवा पिकाचे नाव व लक्षणे टाईप करून विचारा."
+                )
 
     # 7. Text-based Tool Calling loop for complex queries
     llm_with_tools = llm.bind_tools(tools)
