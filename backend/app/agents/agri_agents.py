@@ -98,6 +98,7 @@ DOSAGE & CHEMICAL ACCURACY GUARDRAILS:
 
 CONTEXT GROUNDING:
 - Answer the user's question using the retrieved agronomy context provided in the conversation.
+-Respond in the EXACT same language or dialect as the user's message (e.g., Marathi, Hindi, English, Hinglish).
 - If the retrieved context contains relevant crop, pest, or chemical recommendations, prioritize those details accurately.
 """
 
@@ -359,7 +360,21 @@ def run_farmer_assistant(
         "hi": "Respond completely in Hindi (हिन्दी).",
         "en": "Respond completely in English."
     }
-    lang_note = lang_map.get(language, "Respond in the language chosen by user.")
+    lang_note = lang_map.get(language, "Respond completely in English.")
+
+    # Language-aware fallback query when only an image is uploaded without text
+    image_default_queries = {
+        "mr": "कृपया या पानाचे किंवा फळाचे निरीक्षण करून रोग आणि फवारणी औषधांची अचूक मात्रा सांगा.",
+        "hi": "कृपया इस पत्ते या फल का निरीक्षण करके रोग और कीटनाशक छिड़काव की सही मात्रा बताएं।",
+        "en": "Please examine this leaf or fruit image, identify the disease or issue, and provide recommended sprays with exact dosages."
+    }
+    default_prompt = image_default_queries.get(language, image_default_queries["en"])
+
+    prompt_with_instructions = (
+        f"[STRICT INSTRUCTION: Output your entire response ONLY in {language.upper()} ({lang_note})]\n"
+        f"Farmer Question: {final_query if final_query else default_prompt}"
+        f"{full_context_block}"
+    )
 
     # Combine 80% PDF Handbooks with 20% Web Advisory
     context_sections = []
