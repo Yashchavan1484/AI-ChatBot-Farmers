@@ -10,13 +10,15 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 # Read DATABASE_URL from Render environment
 
 if DATABASE_URL:
-    # Render provides postgres://, but SQLAlchemy 1.4+ requires postgresql://
+    # Render gives postgres:// or postgresql://
+    # Map explicitly to postgresql+psycopg2://
     if DATABASE_URL.startswith("postgres://"):
-        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
     
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 else:
-    # Local fallback for your PC
     engine = create_engine(
         "sqlite:///./kisan_mitra.db", 
         connect_args={"check_same_thread": False}

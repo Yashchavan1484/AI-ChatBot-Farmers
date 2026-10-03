@@ -28,3 +28,5 @@ langchain-chroma>=0.1.1
 langchain-huggingface>=0.1.0
 sentence-transformers>=2.6.0
 pypdf>=4.2.0
+psycopg2-binary
+psycopg[binary]
