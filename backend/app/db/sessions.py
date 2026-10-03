@@ -5,10 +5,25 @@ from backend.app.db.models import Base
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./kisan_mitra.db")
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-)
+from sqlalchemy.orm import sessionmaker, declarative_base
+
+# Read DATABASE_URL from Render environment
+
+if DATABASE_URL:
+    # Render provides postgres://, but SQLAlchemy 1.4+ requires postgresql://
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+else:
+    # Local fallback for your PC
+    engine = create_engine(
+        "sqlite:///./kisan_mitra.db", 
+        connect_args={"check_same_thread": False}
+    )
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
