@@ -579,23 +579,42 @@
         : { phone_number: phone, password: password };
 
       try {
-        const res = await fetch(`${API_BASE}${endpoint}`, {
+        const res = await fetch(`${API_BASE}/api/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            full_name: fullName,
+            phone_number: phone,
+            password: password,
+            preferred_language: currentLang
+          })
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "Authentication failed");
 
-        authToken = data.access_token;
-        localStorage.setItem("kisan_token", authToken);
+        const contentType = res.headers.get("content-type");
+        let data = {};
+        if (contentType && contentType.includes("application/json")) {
+          data = await res.json();
+        } else {
+          const errText = await res.text();
+          throw new Error(errText || `Server returned HTTP ${res.status}`);
+        }
+
+        if (!res.ok) {
+          throw new Error(data.detail || "Registration failed");
+        }
+
+        // On success:
+        localStorage.setItem("kisan_token", data.access_token);
         localStorage.setItem("kisan_user", JSON.stringify(data.user));
-
+        authToken = data.access_token;
         updateUserUI(true, data.user.full_name);
         closeAuthModal();
-        await loadChatSessions();
+        loadChatSessions();
+        alert(currentLang === "en" ? "Registration successful!" : "नोंदणी यशस्वी झाली!");
+
       } catch (err) {
-        alert(`${authMode === "register" ? "नोंदणी अयशस्वी" : "लॉगिन अयशस्वी"}: ${err.message}`);
+        console.error("Registration error:", err);
+        alert((currentLang === "en" ? "Registration failed: " : "नोंदणी अयशस्वी: ") + err.message);
       }
     }
 
@@ -1079,7 +1098,7 @@ if (authToken) {
         alert(currentLang === "en" ? "Microphone permission was denied. Please allow microphone access in site settings." : "मायक्रोफोन परवानगी नाकारली गेली आहे. कृपया ब्राऊझर सेटिंग्जमध्ये परवानगी द्या.");
       }
     }
-    
+
     // function toggleVoiceRecognition(event) {
     //   if (event) {
     //     event.preventDefault();
