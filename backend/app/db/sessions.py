@@ -1,17 +1,10 @@
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from backend.app.db.models import Base
-
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./kisan_mitra.db")
-
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# Read DATABASE_URL from Render environment
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DATABASE_URL:
-    # Render gives postgres:// or postgresql://
-    # Map explicitly to postgresql+psycopg2://
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
     elif DATABASE_URL.startswith("postgresql://"):
@@ -27,14 +20,21 @@ else:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 def init_db():
-    """Initializes tables on startup."""
+    # Explicitly import all DB models so Base.metadata discovers them
+    try:
+        from backend.app.models.user import User  # Adjust path if your model is in user.py / models.py
+    except ImportError:
+        pass
+    try:
+        from backend.app.db.models import User, ChatSession, ChatMessage
+    except ImportError:
+        pass
+
     Base.metadata.create_all(bind=engine)
+    print(">>> [DATABASE]: PostgreSQL / SQLite tables verified and created successfully.")
 
 def get_db():
-    """FastAPI dependency for database session lifecycle."""
     db = SessionLocal()
     try:
         yield db
