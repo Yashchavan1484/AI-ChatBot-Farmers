@@ -31,7 +31,8 @@ def get_text_llm():
     return ChatGroq(
         model="openai/gpt-oss-20b",
         groq_api_key=groq_api_key,
-        temperature=0.2,
+        temperature=0.0,
+        max_tokens=2048,
     )
 
 # Maintain aliases so all existing imports in agri_agents.py work smoothly
@@ -62,8 +63,8 @@ def get_vision_llm():
     return ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",
         google_api_key=gemini_api_key,
-        temperature=0.2,
-        max_output_tokens=1024,
+        temperature=0.0,
+       max_output_tokens=3072,
     )
 
 def get_llm(has_image: bool = False):
