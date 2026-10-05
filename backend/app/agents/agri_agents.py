@@ -39,36 +39,38 @@ VOICE & AUDIO (SPEECH-FRIENDLY) OPTIMIZATION:
 
 MULTIMODAL VISION & CROP DIAGNOSIS RULES:
 When an image of a leaf, fruit, stem, pest, or crop is provided:
-1. STRICT PATHOLOGY VS. PHYSIOLOGICAL DISORDER DIFFERENTIATION:
-   - TROPICAL & ORCHARD FRUITS (Papaya, Mango, Guava, Banana, Citrus, Pomegranate):
-     * Concentric target-board rings, sunken circular necrotic lesions, water-soaked dark spots with a vivid yellow halo -> Diagnose ANTHRACNOSE / FRUIT ROT (Colletotrichum gloeosporioides or Alternaria), NEVER Blossom End Rot.
-     * Blossom End Rot (BER) is strictly limited to solanaceous vegetables (tomatoes, bell peppers, eggplants). NEVER diagnose Blossom End Rot on Papaya or tree fruits.
-     * For Papaya Anthracnose: Immediately prescribe proven systemic fungicides (e.g., Azoxystrobin + Difenoconazole or Tebuconazole + Trifloxystrobin) or contact copper sprays, sanitation (removing diseased fruit), and canopy aeration.
-   - SOLANACEOUS VEGETABLES (Tomato, Chilli, Capsicum, Brinjal):
-     * If damage is strictly at the apical BOTTOM tip (blossom scar opposite the pedicel stem) -> Diagnose BLOSSOM END ROT (calcium imbalance, moisture oscillation).
-     * If lesions appear on the upper sun-exposed shoulder/sides with a papery, bleached, leathery texture -> Diagnose SUNSCALD.
-     * If circular dark brown sunken spots with concentric rings appear on fruit cheeks or leaves -> Diagnose ANTHRACNOSE or EARLY BLIGHT.
-   - FOLIAGE & LEAF DIAGNOSTICS:
-     * Concentric target-like rings with chlorotic halos -> Early Blight (लवकर येणारा करपा).
-     * Irregular, dark water-soaked spreading blights with white/gray downy fungal growth on leaf undersides in humid cool weather -> Late Blight / Downy Mildew.
-     * Leaf curling, upward/downward cupping, yellow vein clearing, or mosaic mottling -> Distinguish sucking pests (thrips, mites, whiteflies, aphids) or viral infection from nutrient chlorosis.
+1. STRICT BOTANICAL IDENTIFICATION BEFORE PATHOLOGY:
+   - Carefully inspect the vegetative architecture, leaf shape, venation, and growth habit:
+     * Dicot Vegetables (Chilli / Mirchi, Tomato, Capsicum, Brinjal): Small branching stems, petiolate ovate or lanceolate leaves with reticulate (netted) veins. Upward cupping, severe leaf curling, stunting, crinkling, or reduced leaf size in these crops indicates CHILLI LEAF CURL VIRUS (transmitted by Whiteflies), THRIPS (Murda / Bokadya), or MITES (Tambera). NEVER diagnose Banana or monocot diseases on these plants!
+     * Cucurbits (Bottle Gourd, Ridge Gourd, Bitter Gourd, Cucumber): Trailing/climbing vines with tendrils and palmately lobed leaves. Tip rotting on young fruits indicates Blossom-End Rot or Choanephora wet rot.
+     * Tropical Fruits (Papaya, Mango, Guava, Banana): Large trees or pseudostems. Concentric target-board rings or sunken circular black lesions with yellow halos on papaya/mango fruit -> Diagnose ANTHRACNOSE / FRUIT ROT (Colletotrichum gloeosporioides), NEVER Blossom End Rot.
+     * Solanaceous Fruit Tips (Tomato, Chilli): Sunken leathery black spot strictly restricted to the blossom scar at the apical tip -> BLOSSOM END ROT (Calcium / Moisture imbalance).
 
 2. STRUCTURED ADVISORY FORMAT:
    - Crop & Disease Diagnosed (पीक व रोगाचे अचूक नाव)
    - Identified Visual Symptoms (दिसून येणारी लक्षणे)
-   - Cause (संभाव्य कारण - बुरशी, कीड, किंवा शारीरिक विकृती)
+   - Cause (संभाव्य कारण - बुरशी, कीड, विषाणू, किंवा शारीरिक विकृती)
    - Recommended Spray / Dosage (शिफारस केलेली फवारणी व प्रमाण)
    - Cultural & Preventive Field Measures (प्रतिबंधात्मक उपाय)
 
 ANTI-HALLUCINATION & DOSAGE INTEGRITY:
-1. BRAND & TECHNICAL NAME PAIRING:
-   - Always mention BOTH the popular commercial brand name and its active technical chemical ingredient (e.g., "Nativo containing Tebuconazole 50% plus Trifloxystrobin 25% WG" or "Amistar Top containing Azoxystrobin plus Difenoconazole").
+1. REAL CIBRC / ICAR REGISTERED FORMULATIONS ONLY:
+   - NEVER fabricate chemical percentages, letters, or trade names (e.g., NEVER say "Imidacloprid 0.5% WG" or "Spinosad 0.5% WG").
+   - Use verified Indian agricultural standard formulations:
+     * Imidacloprid 17.8% SL (Confidor) at 0.3 to 0.5 ml per liter (5 to 7.5 ml per 15-liter pump) OR 70% WG at 0.3 grams per liter.
+     * Thiamethoxam 25% WG (Actara) at 0.5 grams per liter (8 grams per 15-liter pump).
+     * Acetamiprid 20% SP (Pride / Manik) at 0.2 grams per liter (3 grams per 15-liter pump).
+     * Diafenthiuron 50% WP (Pegasus) at 1 to 1.2 grams per liter (15 to 18 grams per 15-liter pump).
+     * Spinosad 45% SC (Tracer) at 0.3 ml per liter (4.5 ml per 15-liter pump).
+     * Fipronil 5% SC at 2 ml per liter (30 ml per 15-liter pump).
+     * Azoxystrobin 18.2% + Difenoconazole 11.4% SC (Amistar Top) at 1 ml per liter (15 ml per 15-liter pump).
+     * Tebuconazole 50% + Trifloxystrobin 25% WG (Nativo) at 0.6 grams per liter (9 grams per 15-liter pump).
+     * Copper Oxychloride 50% WP (Blitox) at 2.5 to 3 grams per liter (40 grams per 15-liter pump).
 2. EXACT DUAL PUMP MEASURES:
    - Always state dilution rates in two explicit measures:
      * Per 1 Liter of water (e.g., "1 milliliter per liter of water" or "१ मिली प्रति लिटर पाणी").
      * Per standard 15-Liter knapsack pump tank (e.g., "15 milliliters per 15-liter pump" or "१५ मिली प्रति १५ लिटर पंप").
 3. DO NOT INVENT DOSAGES:
-   - Only recommend chemicals, active ingredients, and brand pairings that are verified in Indian Agriculture / ICAR / CIBRC standards.
    - If an exact field dosage cannot be confirmed, advise the farmer: "स्थानिक कृषी सेवा केंद्र किंवा कृषी तज्ज्ञांच्या सल्ल्याने अधिकृत लेबल क्लेम तपासूनच प्रमाण वापरावे."
 4. SPRAY TIMING & MANDATORY INTERVAL:
    - State the optimal time of day: Early morning (before 9:30 AM) or late afternoon (after 4:30 PM).
@@ -104,7 +106,8 @@ tool_map = {tool.name: tool for tool in tools}
 AGRI_KEYWORDS = {
     "रोग", "औषध", "फवारणी", "खत", "कीड", "बियाणे", "पाणी", "लागवड",
     "disease", "spray", "blight", "rot", "dose", "fertilizer", "pest", "seed",
-    "anthracnose", "spot", "curling", "fungicide", "pesticide"
+    "anthracnose", "spot", "curling", "fungicide", "pesticide", "virus", "chilli",
+    "tomato", "papaya", "leaf curl", "bunchy"
 }
 
 GREETINGS = {
@@ -119,7 +122,7 @@ def is_simple_greeting(text: str) -> bool:
     return clean in GREETINGS or clean.startswith(("hi ", "hello ", "hey ", "namaskar ", "namaste "))
 
 def needs_rag(query: str) -> bool:
-    """Bypasses ChromaDB vector search for casual greetings or non-agri banter."""
+    """Bypasses vector search for casual greetings or non-agri banter."""
     clean_query = query.lower()
     if any(keyword in clean_query for keyword in AGRI_KEYWORDS):
         return True
@@ -158,8 +161,9 @@ def transcribe_audio_base64(audio_base64: str, language: str = "mr") -> str:
     client = Groq(api_key=groq_api_key.strip())
 
     ext = "webm"
-    if "," in audio_base64:
-        header, audio_base64 = audio_base64.split(",", 1)
+    clean_b64 = audio_base64.strip()
+    if "," in clean_b64:
+        header, clean_b64 = clean_b64.split(",", 1)
         header_lower = header.lower()
         if "wav" in header_lower:
             ext = "wav"
@@ -171,8 +175,9 @@ def transcribe_audio_base64(audio_base64: str, language: str = "mr") -> str:
             ext = "webm"
 
     try:
-        # Strip potential newlines/whitespace before decoding
-        audio_bytes = base64.b64decode(audio_base64.strip())
+        # Remove any whitespace or newline characters from base64 string
+        clean_b64 = re.sub(r"\s+", "", clean_b64)
+        audio_bytes = base64.b64decode(clean_b64)
     except Exception as e:
         print(f"[AUDIO ERROR] Base64 decode failed: {e}")
         return ""
@@ -212,7 +217,7 @@ def call_groq_direct(prompt: str, history: list = None) -> str:
     groq_api_key = os.getenv("GROQ_API_KEY")
     if not groq_api_key:
         print("[GROQ CONFIG ERROR]: GROQ_API_KEY is not set in environment variables.")
-        return "⚠️ Server configuration: GROQ_API_KEY is missing."
+        return "⚠️️ Server configuration: GROQ_API_KEY is missing."
 
     try:
         client = Groq(api_key=groq_api_key.strip())
@@ -309,7 +314,19 @@ def run_farmer_assistant(
         else:
             return "Hello! I am Kisan Mitra, your crop advisor. How can I assist you with your crops, disease diagnosis, or spray schedules today?"
 
+    # Check for direct image or persistent image in conversation history
     has_image = bool(image_data and isinstance(image_data, str) and image_data.startswith("data:image"))
+
+    # Image Context Persistence: If the user is asking a follow-up question, retrieve the image from previous turns
+    if not has_image and history:
+        for turn in reversed(history):
+            if isinstance(turn, dict):
+                prev_img = turn.get("image_data") or turn.get("image_url")
+                if prev_img and isinstance(prev_img, str) and prev_img.startswith("data:image"):
+                    image_data = prev_img
+                    has_image = True
+                    print(">>> [SESSION MEMORY]: Re-anchored previous image context for follow-up query.")
+                    break
 
     # 3. Retrieve handbook context via RAG
     rag_context = ""
@@ -354,7 +371,7 @@ def run_farmer_assistant(
 
     context_sections = []
     if rag_context and rag_context != "NO_LOCAL_DATA_FOUND":
-        context_sections.append(f"=== 80% GROUNDED CONTEXT FROM YOUR LOCAL PDF HANDBOOKS ===\n{rag_context}")
+        context_sections.append(f"=== 80% GROUNDED CONTEXT FROM LOCAL HANDBOOKS ===\n{rag_context}")
     if web_context:
         context_sections.append(f"=== 20% CONTEXT FROM VERIFIED AGRI WEBSITES ===\n{web_context}")
 
@@ -362,12 +379,12 @@ def run_farmer_assistant(
 
     prompt_with_instructions = (
         f"[STRICT LANGUAGE DIRECTIVE: Output your entire response ONLY in {language.upper()} ({lang_note}). "
-        f"Do NOT use any other language.]\n"
+        f"Do NOT switch or use any other language under any circumstances.]\n"
         f"Farmer Query: {effective_query}"
         f"{full_context_block}"
     )
 
-    # 5. Route to text-only providers when no image is uploaded
+    # 5. Route to text-only providers when no image is uploaded and no image in session
     if not has_image:
         if provider.startswith("ollama"):
             return _clean_content(call_ollama(prompt_with_instructions, history=history))
@@ -384,6 +401,7 @@ def run_farmer_assistant(
                 f"{prompt_with_instructions}"
             )
             
+            # Format accepted by langchain-google-genai
             user_content = [
                 {"type": "text", "text": vision_prompt},
                 {"type": "image_url", "image_url": image_data}
@@ -410,7 +428,7 @@ def run_farmer_assistant(
                 }
                 return fallback_err.get(language, fallback_err["en"])
 
-    # 7. Text-based Tool Calling loop for complex text queries
+    # 7. Text-based Tool Calling loop for complex queries
     llm = get_llm(has_image=False)
     llm_with_tools = llm.bind_tools(tools)
     messages = [SystemMessage(content=SYSTEM_INSTRUCTION)]
