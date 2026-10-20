@@ -2,6 +2,8 @@ import os
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
+import re 
+import base64 , requests
 
 load_dotenv()
 
