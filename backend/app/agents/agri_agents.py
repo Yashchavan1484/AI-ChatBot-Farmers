@@ -6,7 +6,6 @@ import base64
 import tempfile
 import requests
 
-# Ensure project root is in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -19,7 +18,7 @@ from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, System
 from groq import Groq
 
 SYSTEM_INSTRUCTION = """You are 'Kisan Mitra' (किसान मित्र), an expert agronomist, plant pathologist, and crop advisory specialist.
-You assist farmers, nursery operators, and commercial growers with practical, field-tested guidance[cite: 3].
+You assist farmers, nursery operators, and commercial growers with practical, field-tested guidance.
 
 CRITICAL LANGUAGE PROTOCOL (STRICT MIRRORING):
 1. ALWAYS match the language of the user's latest query:
@@ -29,36 +28,36 @@ CRITICAL LANGUAGE PROTOCOL (STRICT MIRRORING):
 2. NEVER default to Marathi merely because of agricultural context or Indian crop varieties. The language of the prompt strictly dictates the response language.
 
 STRICT CONVERSATIONAL & OUTPUT GUARDRAILS:
-1. Speak DIRECTLY to the grower in a natural, empathetic, and professional tone[cite: 3].
-2. NEVER output chain-of-thought, internal reasoning, meta-explanations, or raw JSON[cite: 3].
+1. Speak DIRECTLY to the grower in a natural, empathetic, and professional tone.
+2. NEVER output chain-of-thought, internal reasoning, meta-explanations, or raw JSON.
 3. GREETINGS & CASUAL INPUTS:
-   - If the user provides a simple greeting ("hello", "hi", "namaste", "नमस्कार"), respond warmly as Kisan Mitra in their query's language and ask which crop, plant, or field issue they need help with[cite: 3]. Do not trigger technical advisories on bare greetings[cite: 3].
+   - If the user provides a simple greeting ("hello", "hi", "namaste", "नमस्कार"), respond warmly as Kisan Mitra in their query's language and ask which crop, plant, or field issue they need help with. Do not trigger technical advisories on bare greetings.
 
 VOICE & AUDIO (SPEECH-FRIENDLY) OPTIMIZATION:
 1. AUDIO CLARITY:
-   - Use clean sentences and clear punctuation (commas and periods) so text-to-speech engines pause naturally[cite: 3].
-   - NEVER use Markdown tables (`| Col | Col |`)[cite: 3]. Present all chemical schedules, steps, and dosages strictly as clean bulleted lists[cite: 3].
-   - Spell out units phonetically and clearly (e.g., in English: "2 grams per liter of water" or "30 ml per 15-liter knapsack pump"; in Marathi: "दोन ग्रॅम प्रति लिटर पाणी")[cite: 3].
-   - Avoid ambiguous acronyms (e.g., expand KVK to "Krishi Vigyan Kendra" / "कृषी विज्ञान केंद्र")[cite: 3].
+   - Use clean sentences and clear punctuation (commas and periods) so text-to-speech engines pause naturally.
+   - NEVER use Markdown tables (`| Col | Col |`). Present all chemical schedules, steps, and dosages strictly as clean bulleted lists.
+   - Spell out units phonetically and clearly (e.g., in English: "2 grams per liter of water" or "30 ml per 15-liter knapsack pump"; in Marathi: "दोन ग्रॅम प्रति लिटर पाणी").
+   - Avoid ambiguous acronyms (e.g., expand KVK to "Krishi Vigyan Kendra" / "कृषी विज्ञान केंद्र").
 2. SPEECH-TO-TEXT TOLERANCE:
-   - Voice inputs may feature phonetic inaccuracies or missing punctuation[cite: 3]. Infer crop names and symptoms contextually[cite: 3].
+   - Voice inputs may feature phonetic inaccuracies or missing punctuation. Infer crop names and symptoms contextually.
 
 MULTIMODAL VISION & BOTANICAL DIAGNOSTIC RULES:
 When an image of a plant, leaf, branch, or field condition is provided:
 
 1. COMPREHENSIVE BOTANICAL ARCHITECTURE IDENTIFICATION:
-   - Dicot Field Vegetables (Tomato, Chilli/Mirchi, Capsicum, Brinjal/Eggplant)[cite: 3]:
-     * Check for leaf curling, stunted bushy shoots, or vein-clearing[cite: 3]. Upward cupping / stunted leaves indicate Chilli Leaf Curl Virus (whitefly vector) or Thrips (Murda/Bokadya); downward curling suggests Yellow Mites (Tambera)[cite: 3].
-   - Cucurbits & Vines (Bitter Gourd, Bottle Gourd, Ridge Gourd, Cucumber, Watermelon)[cite: 3]:
-     * Trailing habits with tendrils[cite: 3]. Apical fruit rot on young ovaries indicates Blossom-End Rot or Choanephora wet rot[cite: 3].
+   - Dicot Field Vegetables (Tomato, Chilli/Mirchi, Capsicum, Brinjal/Eggplant):
+     * Check for leaf curling, stunted bushy shoots, or vein-clearing. Upward cupping / stunted leaves indicate Chilli Leaf Curl Virus (whitefly vector) or Thrips (Murda/Bokadya); downward curling suggests Yellow Mites (Tambera).
+   - Cucurbits & Vines (Bitter Gourd, Bottle Gourd, Ridge Gourd, Cucumber, Watermelon):
+     * Trailing habits with tendrils. Apical fruit rot on young ovaries indicates Blossom-End Rot or Choanephora wet rot.
    - Commercial Flowering Plants & Ornamental Shrubs (Rose, Marigold, Hibiscus, Jasmine, Bougainvillea, Chrysanthemum):
      * Woody perennials, serrated leaves, ornamental canopies.
      * Uniform pale-yellow foliage with green veins indicates iron/micronutrient chlorosis (frequent in alkaline soils).
      * Sudden canopy-wide wilting, drooping, and crispy brown margins while leaves remain attached indicate Vascular Wilt (Fusarium/Verticillium) or Severe Root Rot / Waterlogging (Phytophthora/Pythium).
      * Distinguish true pathogen wilt from abiotic drought/heat scorch or chemical/fertilizer burn at the root collar.
-   - Tropical Fruit Orchards (Mango, Guava, Papaya, Banana, Citrus)[cite: 3]:
-     * Concentric target rings or sunken dark lesions on papaya/mango -> Anthracnose (Colletotrichum)[cite: 3].
-     * Distinguish Blossom End Rot (restricted to flower scar tips in solanaceous crops) from fungal fruit rot[cite: 3].
+   - Tropical Fruit Orchards (Mango, Guava, Papaya, Banana, Citrus):
+     * Concentric target rings or sunken dark lesions on papaya/mango -> Anthracnose (Colletotrichum).
+     * Distinguish Blossom End Rot (restricted to flower scar tips in solanaceous crops) from fungal fruit rot.
 
 2. DIFFERENTIAL DIAGNOSIS BEFORE PRESCRIPTION:
    - If image symptoms can stem from multiple causes (e.g., root rot vs. acute drought), list the 2 most probable causes ranked by visual evidence.
@@ -74,24 +73,24 @@ When an image of a plant, leaf, branch, or field condition is provided:
    - Cultural & Preventive Field Measures (Drainage, pruning, spacing, watering)
 
 ANTI-HALLUCINATION & DOSAGE INTEGRITY:
-1. REGISTERED CIBRC / ICAR FORMULATIONS ONLY[cite: 3]:
-   - NEVER invent chemical percentages, synthetic isomers, or nonexistent tank mixes (e.g., never recommend "Spinosad 0.5% WG")[cite: 3].
-   - Stick to approved commercial standards[cite: 3]:
-     * Copper Oxychloride 50% WP (Blitox): 2.5 to 3 grams per liter (40 grams per 15-liter pump)[cite: 3].
+1. REGISTERED CIBRC / ICAR FORMULATIONS ONLY:
+   - NEVER invent chemical percentages, synthetic isomers, or nonexistent tank mixes (e.g., never recommend "Spinosad 0.5% WG").
+   - Stick to approved commercial standards:
+     * Copper Oxychloride 50% WP (Blitox): 2.5 to 3 grams per liter (40 grams per 15-liter pump).
      * Metalaxyl 8% + Mancozeb 64% WP (Ridomil Gold): 2 grams per liter (30 grams per 15-liter pump).
-     * Azoxystrobin 18.2% + Difenoconazole 11.4% SC (Amistar Top): 1 ml per liter (15 ml per 15-liter pump)[cite: 3].
-     * Tebuconazole 50% + Trifloxystrobin 25% WG (Nativo): 0.6 grams per liter (9 grams per 15-liter pump)[cite: 3].
-     * Imidacloprid 17.8% SL (Confidor): 0.3 to 0.5 ml per liter (5 to 7.5 ml per 15-liter pump)[cite: 3].
-     * Thiamethoxam 25% WG (Actara): 0.5 grams per liter (8 grams per 15-liter pump)[cite: 3].
-     * Diafenthiuron 50% WP (Pegasus): 1 to 1.2 grams per liter (15 to 18 grams per 15-liter pump)[cite: 3].
-     * Spinosad 45% SC (Tracer): 0.3 ml per liter (4.5 ml per 15-liter pump)[cite: 3].
+     * Azoxystrobin 18.2% + Difenoconazole 11.4% SC (Amistar Top): 1 ml per liter (15 ml per 15-liter pump).
+     * Tebuconazole 50% + Trifloxystrobin 25% WG (Nativo): 0.6 grams per liter (9 grams per 15-liter pump).
+     * Imidacloprid 17.8% SL (Confidor): 0.3 to 0.5 ml per liter (5 to 7.5 ml per 15-liter pump).
+     * Thiamethoxam 25% WG (Actara): 0.5 grams per liter (8 grams per 15-liter pump).
+     * Diafenthiuron 50% WP (Pegasus): 1 to 1.2 grams per liter (15 to 18 grams per 15-liter pump).
+     * Spinosad 45% SC (Tracer): 0.3 ml per liter (4.5 ml per 15-liter pump).
 2. DUAL CONCENTRATION SPECIFICATION:
-   - Always state dilutions in both formats: per 1 Liter of water AND per standard 15-Liter knapsack pump tank[cite: 3].
+   - Always state dilutions in both formats: per 1 Liter of water AND per standard 15-Liter knapsack pump tank.
 3. SPRAY TIMING & WAITING INTERVALS:
-   - Advise spraying in early morning (before 9:30 AM) or late afternoon (after 4:30 PM)[cite: 3].
-   - Enforce a 10-to-14-day gap before re-application[cite: 3]. NEVER recommend daily spraying[cite: 3].
+   - Advise spraying in early morning (before 9:30 AM) or late afternoon (after 4:30 PM).
+   - Enforce a 10-to-14-day gap before re-application. NEVER recommend daily spraying.
 4. POST-TREATMENT RECOVERY INDICATORS:
-   - State what the grower should observe 4 to 5 days after intervention (e.g., drying of lesions, active green shoot flush, cessation of wilting)[cite: 3].
+   - State what the grower should observe 4 to 5 days after intervention (e.g., drying of lesions, active green shoot flush, cessation of wilting).
 """
 
 WHITELISTED_DOMAINS = [
@@ -130,14 +129,12 @@ def is_simple_greeting(text: str) -> bool:
     return clean in GREETINGS or clean.startswith(("hi ", "hello ", "hey ", "namaskar ", "namaste "))
 
 def needs_rag(query: str) -> bool:
-    """Bypasses vector search for casual greetings or non-agri banter."""
     clean_query = query.lower()
     if any(keyword in clean_query for keyword in AGRI_KEYWORDS):
         return True
     return len(query.strip().split()) > 3
 
 def _clean_content(content) -> str:
-    """Converts LLM response blocks to a clean text string."""
     if isinstance(content, str):
         text = content
     elif isinstance(content, list):
@@ -160,7 +157,6 @@ def _clean_content(content) -> str:
     return cleaned.strip()
 
 def transcribe_audio_base64(audio_base64: str, language: str = "mr") -> str:
-    """Transcribes incoming farmer voice audio using Groq Whisper with language awareness."""
     groq_api_key = os.getenv("GROQ_API_KEY")
     if not groq_api_key:
         print("[AUDIO WARNING] GROQ_API_KEY is not set. Skipping audio transcription.")
@@ -183,7 +179,6 @@ def transcribe_audio_base64(audio_base64: str, language: str = "mr") -> str:
             ext = "webm"
 
     try:
-        # Remove any whitespace or newline characters from base64 string
         clean_b64 = re.sub(r"\s+", "", clean_b64)
         audio_bytes = base64.b64decode(clean_b64)
     except Exception as e:
@@ -221,11 +216,10 @@ def transcribe_audio_base64(audio_base64: str, language: str = "mr") -> str:
             os.remove(tmp_path)
 
 def call_groq_direct(prompt: str, history: list = None) -> str:
-    """Direct Groq API execution with clean error isolation and history sanitization."""
     groq_api_key = os.getenv("GROQ_API_KEY")
     if not groq_api_key:
         print("[GROQ CONFIG ERROR]: GROQ_API_KEY is not set in environment variables.")
-        return "⚠️️ Server configuration: GROQ_API_KEY is missing."
+        return "⚠ Server configuration: GROQ_API_KEY is missing."
 
     try:
         client = Groq(api_key=groq_api_key.strip())
@@ -291,20 +285,16 @@ def run_farmer_assistant(
     provider: str = "gemini",
     **kwargs
 ) -> str:
-    """Main agricultural advisory agent supporting audio, text, RAG, and image input."""
     print(f">>> [ASSISTANT ENTRY]: query='{query}', lang='{language}', provider='{provider}'")
 
-    # 1. Process voice audio if submitted
     transcribed_text = ""
     if audio_data and isinstance(audio_data, str) and len(audio_data.strip()) > 0:
         print("\n>>> [STEP 1] Transcribing incoming audio with Groq Whisper...")
         transcribed_text = transcribe_audio_base64(audio_data, language=language)
         print(f">>> [STEP 2] Transcribed Text: '{transcribed_text}'\n")
 
-    # Merge query text and transcribed audio
     final_query = f"{query.strip()} {transcribed_text.strip()}".strip()
 
-    # Fast fallback if audio was unintelligible and no query was typed
     if not final_query and not image_data:
         fallback_msg = {
             "mr": "माफ करा, तुमचा आवाज स्पष्ट ऐकू आला नाही. कृपया पुन्हा माईक दाबून बोला किंवा टाईप करा.",
@@ -313,7 +303,6 @@ def run_farmer_assistant(
         }
         return fallback_msg.get(language, fallback_msg["mr"])
 
-    # 2. Fast-Path: Simple greetings without image inspection
     if is_simple_greeting(final_query) and not image_data:
         if language == "mr":
             return "नमस्कार शेतकरी बंधू! मी आपला कृषी सल्लागार किसान मित्र आहे. आपल्या पिकाबद्दल किंवा फवारणीबद्दल काय प्रश्न आहे?"
@@ -322,10 +311,8 @@ def run_farmer_assistant(
         else:
             return "Hello! I am Kisan Mitra, your crop advisor. How can I assist you with your crops, disease diagnosis, or spray schedules today?"
 
-    # Check for direct image or persistent image in conversation history
     has_image = bool(image_data and isinstance(image_data, str) and image_data.startswith("data:image"))
 
-    # Image Context Persistence: If the user is asking a follow-up question, retrieve the image from previous turns
     if not has_image and history:
         for turn in reversed(history):
             if isinstance(turn, dict):
@@ -336,19 +323,38 @@ def run_farmer_assistant(
                     print(">>> [SESSION MEMORY]: Re-anchored previous image context for follow-up query.")
                     break
 
-    # 3. Retrieve handbook context via RAG
+    cv_diagnosis_block = ""
+    rag_search_query = final_query
+
+    if has_image:
+        print(">>> [CV] Running Lightweight Plant Classifier...")
+        cv_result = detect_plant_disease(image_data)
+        
+        if cv_result and cv_result.get("is_confident") and cv_result.get("label"):
+            detected_label = cv_result["label"]
+            conf_pct = int(cv_result["confidence"] * 100)
+            
+            cv_diagnosis_block = (
+                f"=== VERIFIED COMPUTER VISION CLASSIFIER OUTPUT ===\n"
+                f"Detected Crop & Condition: {detected_label} (Confidence: {conf_pct}%)\n"
+                f"Instruction: Cross-check this detection with the visual symptoms in the image. "
+                f"If consistent, base your chemical spray and dosage strictly on '{detected_label}'."
+            )
+            rag_search_query = f"{detected_label} {final_query}".strip()
+            print(f">>> [RAG] Search Query Updated to: '{rag_search_query}'")
+
     rag_context = ""
     web_context = ""
     
-    if needs_rag(final_query):
+    if needs_rag(rag_search_query):
         try:
             print(">>> [DOCUMENTS RAG]: Querying ChromaDB handbook vectorstore...")
             if hasattr(search_local_handbooks, "func"):
-                rag_context = search_local_handbooks.func(final_query)
+                rag_context = search_local_handbooks.func(rag_search_query)
             elif hasattr(search_local_handbooks, "invoke"):
-                rag_context = search_local_handbooks.invoke({"query": final_query})
+                rag_context = search_local_handbooks.invoke({"query": rag_search_query})
             else:
-                rag_context = search_local_handbooks(final_query)
+                rag_context = search_local_handbooks(rag_search_query)
         except Exception as e:
             print(f">>> [RAG RETRIEVAL WARNING]: {e}")
             rag_context = ""
@@ -358,11 +364,10 @@ def run_farmer_assistant(
                 print(">>> [WEB FALLBACK]: Searching verified agriculture portals...")
                 tavily_key = os.getenv("TAVILY_API_KEY")
                 if tavily_key:
-                    web_context = web_search_tool.invoke({"query": f"{final_query} ICAR package of practices"})
+                    web_context = web_search_tool.invoke({"query": f"{rag_search_query} ICAR package of practices"})
             except Exception as e:
                 print(f">>> [WEB SEARCH WARNING]: {e}")
 
-    # 4. Prepare single consolidated prompt with strict language instructions
     lang_map = {
         "mr": "Respond completely in Marathi (मराठी).",
         "hi": "Respond completely in Hindi (हिन्दी).",
@@ -378,6 +383,10 @@ def run_farmer_assistant(
     effective_query = final_query if final_query else image_default_queries.get(language, image_default_queries["en"])
 
     context_sections = []
+    
+    if cv_diagnosis_block:
+        context_sections.append(cv_diagnosis_block)
+        
     if rag_context and rag_context != "NO_LOCAL_DATA_FOUND":
         context_sections.append(f"=== 80% GROUNDED CONTEXT FROM LOCAL HANDBOOKS ===\n{rag_context}")
     if web_context:
@@ -392,14 +401,12 @@ def run_farmer_assistant(
         f"{full_context_block}"
     )
 
-    # 5. Route to text-only providers when no image is uploaded and no image in session
     if not has_image:
         if provider.startswith("ollama"):
             return _clean_content(call_ollama(prompt_with_instructions, history=history))
         elif provider.startswith("groq"):
             return _clean_content(call_groq_direct(prompt_with_instructions, history=history))
 
-    # 6. Multimodal Vision Execution (Gemini 2.5 Flash)
     if has_image:
         try:
             llm = get_llm(has_image=True)
@@ -409,7 +416,6 @@ def run_farmer_assistant(
                 f"{prompt_with_instructions}"
             )
             
-            # Format accepted by langchain-google-genai
             user_content = [
                 {"type": "text", "text": vision_prompt},
                 {"type": "image_url", "image_url": image_data}
@@ -436,7 +442,6 @@ def run_farmer_assistant(
                 }
                 return fallback_err.get(language, fallback_err["en"])
 
-    # 7. Text-based Tool Calling loop for complex queries
     llm = get_llm(has_image=False)
     llm_with_tools = llm.bind_tools(tools)
     messages = [SystemMessage(content=SYSTEM_INSTRUCTION)]
@@ -474,4 +479,3 @@ def run_farmer_assistant(
 
     final_response = llm.invoke(messages)
     return _clean_content(final_response.content)
-
