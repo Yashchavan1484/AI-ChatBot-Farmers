@@ -75,3 +75,54 @@ def get_llm(has_image: bool = False):
     if has_image:
         return get_vision_llm()
     return get_text_llm()
+
+HF_MODEL_URL = "https://api-inference.huggingface.co/models/linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification"
+
+def _decode_base64_image(image_data: str) -> bytes:
+    """Strips data URI header and returns raw image bytes."""
+    clean_b64 = image_data.strip()
+    if "," in clean_b64:
+        _, clean_b64 = clean_b64.split(",", 1)
+    clean_b64 = re.sub(r"\s+", "", clean_b64)
+    return base64.b64decode(clean_b64)
+
+def detect_plant_disease(image_data: str, confidence_threshold: float = 0.45) -> dict:
+    """
+    Classifies crop leaf images via lightweight MobileNetV2.
+    Returns: {"label": str, "confidence": float, "is_confident": bool}
+    """
+    try:
+        image_bytes = _decode_base64_image(image_data)
+    except Exception as e:
+        print(f"[CV CLASSIFIER ERROR] Invalid base64 image: {e}")
+        return {"label": None, "confidence": 0.0, "is_confident": False}
+
+    hf_token = os.getenv("HF_TOKEN", "").strip()
+    headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
+
+    try:
+        response = requests.post(
+            HF_MODEL_URL,
+            headers=headers,
+            data=image_bytes,
+            timeout=10
+        )
+        if response.status_code == 200:
+            predictions = response.json()
+            if isinstance(predictions, list) and len(predictions) > 0:
+                top = predictions[0]
+                raw_label = top.get("label", "").replace("___", " - ").replace("_", " ")
+                score = float(top.get("score", 0.0))
+                print(f">>> [CV MODEL DETECTED]: '{raw_label}' (Confidence: {score:.2%})")
+                return {
+                    "label": raw_label,
+                    "confidence": round(score, 3),
+                    "is_confident": score >= confidence_threshold
+                }
+        else:
+            print(f"[CV API WARNING] Status {response.status_code}: {response.text[:120]}")
+    except Exception as e:
+        print(f"[CV CLASSIFIER FALLBACK] Request failed: {e}")
+
+    return {"label": None, "confidence": 0.0, "is_confident": False}
+

@@ -11,7 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from backend.app.models.llm import get_llm, get_text_llm
+from backend.app.models.llm import get_llm, get_text_llm , detect_plant_disease
 from backend.app.rag.vectorstore import search_local_handbooks
 
 from langchain_tavily import TavilySearch
@@ -474,3 +474,4 @@ def run_farmer_assistant(
 
     final_response = llm.invoke(messages)
     return _clean_content(final_response.content)
+
